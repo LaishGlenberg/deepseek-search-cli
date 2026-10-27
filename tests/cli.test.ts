@@ -73,6 +73,28 @@ describe('parseArgs', () => {
       kind: 'search',
       query: 'deepseek v4',
     });
+    expect(parseArgs(['deep release', '-n', '5'])).toMatchObject({
+      kind: 'search',
+      query: 'deep release',
+      count: 5,
+    });
+  });
+
+  it('accepts search options before the query in shorthand mode', () => {
+    expect(parseArgs(['-n', '5', 'deep release'])).toMatchObject({
+      kind: 'search',
+      query: 'deep release',
+      count: 5,
+    });
+    expect(parseArgs(['--count=3', '--content', 'deep release'])).toMatchObject({
+      kind: 'search',
+      query: 'deep release',
+      count: 3,
+      needContent: true,
+    });
+    expect(parseArgs(['--json', 'deep release'])).toMatchObject({ kind: 'search', json: true });
+    expect(parseArgs(['--', '--json'])).toMatchObject({ kind: 'search', query: '--json' });
+    expect(() => parseArgs(['--bogus', 'q'])).toThrow(UsageError);
   });
 
   it('parses search options in both flag forms', () => {

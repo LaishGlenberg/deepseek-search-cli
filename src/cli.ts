@@ -248,6 +248,17 @@ function parseFetch(tokens: string[]): ParsedCommand {
   return { kind: 'fetch', url, json };
 }
 
+/** Search options that may appear before the query in shorthand mode. */
+const SHORTHAND_OPTIONS = new Set([
+  '-n',
+  '--count',
+  '--content',
+  '--ori-question',
+  '--localization',
+  '--json',
+  '--',
+]);
+
 export function parseArgs(argv: string[]): ParsedCommand {
   const [first, ...rest] = argv;
 
@@ -264,6 +275,11 @@ export function parseArgs(argv: string[]): ParsedCommand {
     return parseFetch(rest);
   }
   if (first.startsWith('-') && first !== '-') {
+    // No command given: route known search options to a shorthand search so that
+    // `dsearch -n 5 "query"` works like `dsearch "query" -n 5`.
+    if (SHORTHAND_OPTIONS.has(splitOption(first).name)) {
+      return parseSearch(argv);
+    }
     throw new UsageError(`Unknown command or option: ${first}`);
   }
 
