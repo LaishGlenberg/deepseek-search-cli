@@ -173,9 +173,12 @@ describe('parseArgs', () => {
       kind: 'fetch',
       url: 'https://example.com/a',
       json: false,
+      clean: false,
     });
     expect(parseArgs(['fetch', 'https://example.com', '--json'])).toMatchObject({ json: true });
     expect(parseArgs(['fetch', 'https://example.com', '-j'])).toMatchObject({ json: true });
+    expect(parseArgs(['fetch', 'https://example.com', '--clean'])).toMatchObject({ clean: true });
+    expect(() => parseArgs(['fetch', 'https://example.com', '--clean', '--json'])).toThrow(/--clean/);
 
     expect(() => parseArgs(['fetch'])).toThrow(UsageError);
     expect(() => parseArgs(['fetch', 'not a url'])).toThrow(UsageError);
@@ -190,6 +193,7 @@ describe('parseArgs', () => {
       kind: 'fetch',
       url: 'https://google.com',
       json: false,
+      clean: false,
     });
     expect(parseArgs(['HTTP://example.com/a', '--json'])).toMatchObject({ kind: 'fetch', json: true });
     expect(parseArgs(['https://example.com', '-o', 'page.md'])).toMatchObject({

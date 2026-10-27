@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path';
 
 import { createClient, DeepSeekApiError } from './client.js';
 import { ConfigError, loadConfig } from './config.js';
-import { formatPage, formatPageMarkdown, formatSearchMarkdown, formatSearchResults } from './format.js';
+import { formatPage, formatPageMarkdown, formatSearchMarkdown, formatSearchResults, unescapeMarkdown } from './format.js';
 import { VERSION } from './version.js';
 
 export const HELP = `dsearch — DeepSeek web search from the terminal
@@ -27,6 +27,7 @@ Search options:
 
 Fetch options:
   -j, --json               Print the raw API response as JSON
+      --clean              Unescape Markdown punctuation in the fetched content
 
 Global options:
   -o, --output <file>  Write to a file instead of stdout (JSON with --json, Markdown otherwise)
@@ -43,7 +44,8 @@ Examples:
   dsearch "DeepSeek V4 release" -o results.md
   dsearch "DeepSeek V4 release" -j -o results.json
   dsearch https://api-docs.deepseek.com/guides/search
-  dsearch fetch https://api-docs.deepseek.com/guides/search --output docs/search.md`;
+  dsearch fetch https://api-docs.deepseek.com/guides/search --output docs/search.md
+  dsearch fetch https://api-docs.deepseek.com/guides/search --clean -o docs/search.md`;
 
 export class UsageError extends Error {
   constructor(message: string) {
@@ -67,6 +69,7 @@ export interface FetchCommand {
   kind: 'fetch';
   url: string;
   json: boolean;
+  clean: boolean;
   output?: string;
 }
 
@@ -225,6 +228,7 @@ function validateUrl(value: string): void {
 
 function parseFetch(tokens: string[]): ParsedCommand {
   let json = false;
+  let clean = false;
   let output: string | undefined;
   let url: string | undefined;
   let endOfOptions = false;
@@ -244,6 +248,12 @@ function parseFetch(tokens: string[]): ParsedCommand {
 
     if (!endOfOptions && (token === '-j' || token === '--json')) {
       json = true;
+      index += 1;
+      continue;
+    }
+
+    if (!endOfOptions && token === '--clean') {
+      clean = true;
       index += 1;
       continue;
     }
@@ -273,8 +283,12 @@ function parseFetch(tokens: string[]): ParsedCommand {
     throw new UsageError('Missing URL. Usage: dsearch fetch <url>');
   }
 
+  if (json && clean) {
+    throw new UsageError('--clean cannot be combined with --json.');
+  }
+
   validateUrl(url);
-  return { kind: 'fetch', url, json, output };
+  return { kind: 'fetch', url, json, clean, output };
 }
 
 /** Search options that may appear before the query in shorthand mode. */
@@ -421,15 +435,16 @@ export async function main(argv: string[], deps: CliDeps = {}): Promise<number> 
       }
     } else {
       const page = await client.fetchPage(command.url);
+      const rendered = command.clean ? { ...page, content: unescapeMarkdown(page.content) } : page;
 
       if (command.output) {
         const payload = command.json
           ? `${JSON.stringify(page, null, 2)}\n`
-          : formatPageMarkdown(command.url, page);
+          : formatPageMarkdown(command.url, rendered);
         writeOutput(command.output, payload, deps.cwd ?? process.cwd());
         out(command.json ? `Wrote JSON to ${command.output}` : `Wrote page to ${command.output}`);
       } else {
-        out(command.json ? JSON.stringify(page, null, 2) : formatPage(command.url, page));
+        out(command.json ? JSON.stringify(page, null, 2) : formatPage(command.url, rendered));
       }
     }
     return 0;

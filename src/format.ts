@@ -109,6 +109,38 @@ export function formatSearchMarkdown(
   return `${lines.join('\n').trimEnd()}\n`;
 }
 
+const FENCE = /^\s*(`{3,}|~{3,})/;
+const ESCAPED_PUNCTUATION = /\\([!-/:-@[-`{-~])/g;
+
+/**
+ * Remove CommonMark backslash escapes before ASCII punctuation, leaving fenced
+ * code blocks untouched. DeepSeek's fetch endpoint escapes every punctuation
+ * character in `content`, which breaks headings and tables and makes `\(`/`\[`
+ * look like LaTeX math delimiters to KaTeX-based renderers.
+ */
+export function unescapeMarkdown(text: string): string {
+  let fence: string | undefined;
+
+  return text
+    .split(/\r?\n/)
+    .map((line) => {
+      const opening = line.match(FENCE)?.[1];
+
+      if (fence) {
+        if (opening && opening[0] === fence[0] && opening.length >= fence.length) fence = undefined;
+        return line;
+      }
+
+      if (opening) {
+        fence = opening;
+        return line;
+      }
+
+      return line.replace(ESCAPED_PUNCTUATION, '$1');
+    })
+    .join('\n');
+}
+
 /** Render a fetched page as a Markdown document, showing its source URL. */
 export function formatPageMarkdown(url: string, page: FetchResponse): string {
   const title = page.title.trim();

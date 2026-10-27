@@ -4,6 +4,7 @@ import {
   formatPageMarkdown,
   formatSearchMarkdown,
   formatSearchResults,
+  unescapeMarkdown,
 } from '../src/format.js';
 import type { SearchResult } from '../src/types.js';
 
@@ -142,5 +143,32 @@ describe('formatPageMarkdown', () => {
     expect(formatPageMarkdown('https://example.com', { title: 'Title', content: '' })).toBe(
       '# Title\n\n`https://example.com`\n',
     );
+  });
+});
+
+describe('unescapeMarkdown', () => {
+  it('unescapes headings, tables, links, and math-like delimiters', () => {
+    const escaped = [
+      '\\# Models \\& Pricing',
+      'Search \\/ Fetch API \\[here\\]\\(https\\:\\/\\/example\\.com\\)',
+      '\\-\\-\\-\\|\\-\\-\\-',
+    ].join('\n');
+
+    expect(unescapeMarkdown(escaped)).toBe(
+      ['# Models & Pricing', 'Search / Fetch API [here](https://example.com)', '---|---'].join('\n'),
+    );
+  });
+
+  it('leaves fenced code blocks untouched', () => {
+    const text = ['\\# heading', '```js', 'const re = /a\\.b\\(c\\)/;', '```', '\\# next'].join('\n');
+
+    expect(unescapeMarkdown(text)).toBe(
+      ['# heading', '```js', 'const re = /a\\.b\\(c\\)/;', '```', '# next'].join('\n'),
+    );
+  });
+
+  it('supports tilde fences', () => {
+    const text = ['~~~', '\\.keep', '~~~', '\\.strip'].join('\n');
+    expect(unescapeMarkdown(text)).toBe(['~~~', '\\.keep', '~~~', '.strip'].join('\n'));
   });
 });

@@ -76,7 +76,14 @@ Fetches a single page and prints its URL, title, and Markdown content.
 | --- | --- |
 | `-o, --output <file>` | Write the page to a file instead of stdout (JSON with `--json`, Markdown otherwise) |
 | `-j, --json` | Print the raw API response as JSON |
+| `--clean` | Unescape Markdown punctuation in the fetched content |
 | `-h, --help` | Show help |
+
+The fetch endpoint returns Markdown with every ASCII punctuation character
+backslash-escaped (`\#`, `\-`, `\(`, `\.`, `\/`). That breaks headings, tables, and
+links, and `\(`/`\[` are read as math delimiters by KaTeX-based renderers. `--clean`
+removes those escapes outside fenced code blocks so the page renders normally;
+`--json` still returns the API response unchanged.
 
 ### Examples
 
@@ -100,6 +107,9 @@ dsearch fetch https://api-docs.deepseek.com/guides/search -o docs/search-api.md
 # Save the raw API response as JSON
 dsearch "DeepSeek V4 release" -n 5 -j -o results.json
 dsearch fetch https://api-docs.deepseek.com/guides/search --json -o docs/search-api.json
+
+# Unescape the fetch endpoint's escaped Markdown so headings and tables render
+dsearch fetch https://api-docs.deepseek.com/quick_start/pricing/ --clean -o docs/pricing.md
 
 # Fetch a page as Markdown
 dsearch fetch https://api-docs.deepseek.com/guides/search
