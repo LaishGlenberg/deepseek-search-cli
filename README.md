@@ -13,6 +13,14 @@ optional full page content. It is a small, zero-dependency wrapper around:
 - `POST /v1/tools/search` — find web pages for a query
 - `POST /v1/tools/fetch` — retrieve a page as Markdown
 
+<p align="center">
+  <img
+    src="https://raw.githubusercontent.com/LaishGlenberg/deepseek-search-cli/main/docs/assets/search-sequence.gif"
+    alt="Terminal recording of dsearch searching the web and fetching a page"
+    width="800"
+  />
+</p>
+
 ## Quick start
 
 ```bash
