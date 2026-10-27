@@ -25,9 +25,12 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "oxlint src tests",
+    "lint": "oxlint --deny-warnings src tests",
+    "pretest": "npm run build",
     "test": "vitest run",
+    "pretest:watch": "npm run build",
     "test:watch": "vitest",
+    "test:live": "vitest run tests/live",
     "prepublishOnly": "npm run lint && npm run typecheck && npm run build && npm test"
   },
   "keywords": [
