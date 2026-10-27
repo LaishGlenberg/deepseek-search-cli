@@ -347,6 +347,7 @@ export interface CliDeps {
   env?: NodeJS.ProcessEnv;
   cwd?: string;
   fetchImpl?: typeof fetch;
+  stdin?: NodeJS.ReadStream;
 }
 
 function apiHint(status: number): string | undefined {
@@ -372,21 +373,20 @@ function writeOutput(path: string, contents: string, cwd: string): void {
   writeFileSync(target, contents, 'utf8');
 }
 
-function readPipedKey(): Promise<string> {
+function readPipedKey(stream: NodeJS.ReadableStream = process.stdin): Promise<string> {
   return new Promise((succeed, fail) => {
     const chunks: string[] = [];
-    process.stdin.setEncoding('utf8');
-    process.stdin.on('data', (chunk: string) => chunks.push(chunk));
-    process.stdin.on('end', () => succeed(chunks.join('').trim()));
-    process.stdin.on('error', fail);
-    process.stdin.resume();
+    stream.setEncoding('utf8');
+    stream.on('data', (chunk: string) => chunks.push(chunk));
+    stream.on('end', () => succeed(chunks.join('').trim()));
+    stream.on('error', fail);
+    stream.resume();
   });
 }
 
 /** Read the key from a TTY without echoing it. */
-function readTtyKey(): Promise<string> {
+function readTtyKey(stdin: NodeJS.ReadStream): Promise<string> {
   return new Promise((succeed, fail) => {
-    const stdin = process.stdin;
     let key = '';
 
     const finish = (result: string | UsageError) => {
@@ -420,11 +420,12 @@ function readTtyKey(): Promise<string> {
 async function runAuth(deps: CliDeps): Promise<number> {
   const out = deps.out ?? ((message: string) => console.log(message));
   const err = deps.err ?? ((message: string) => console.error(message));
-  const piped = !process.stdin.isTTY;
+  const stdin = deps.stdin ?? process.stdin;
+  const piped = !stdin.isTTY;
 
   try {
     if (!piped) process.stdout.write('DeepSeek API key (input hidden): ');
-    const apiKey = (piped ? await readPipedKey() : await readTtyKey()).trim();
+    const apiKey = (piped ? await readPipedKey(stdin) : await readTtyKey(stdin)).trim();
     if (!apiKey) throw new UsageError(piped ? 'No API key on stdin.' : 'No API key entered.');
     if (/\s/.test(apiKey)) throw new UsageError('API key must not contain whitespace.');
 

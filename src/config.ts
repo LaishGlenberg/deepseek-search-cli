@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -79,6 +79,11 @@ export function saveApiKey(apiKey: string, env: NodeJS.ProcessEnv = process.env)
   const target = configPath(env);
   mkdirSync(dirname(target), { recursive: true });
   writeFileSync(target, `${JSON.stringify({ apiKey }, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
+
+  // `mode` only applies when the file is created, so tighten a file that already
+  // existed with looser permissions. Windows ignores POSIX modes.
+  if (process.platform !== 'win32') chmodSync(target, 0o600);
+
   return target;
 }
 

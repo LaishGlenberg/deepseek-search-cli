@@ -25,6 +25,13 @@ dsearch "DeepSeek V4 release"
 for every project. It prints the file it wrote. `DEEPSEEK_API_KEY` and a `.env` in the
 current directory take precedence over the saved key.
 
+The key is stored as plaintext JSON readable only by your user (`0600` on Linux and
+macOS). When piping, avoid `echo`, which leaves the key in shell history:
+
+```bash
+read -rs DEEPSEEK_KEY && printf '%s' "$DEEPSEEK_KEY" | dsearch auth
+```
+
 ```bash
 dsearch search "DeepSeek site:github.com after:2025" -n 5
 ```

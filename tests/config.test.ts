@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -124,5 +124,25 @@ describe('user config file', () => {
     writeFileSync(target, 'not json');
 
     expect(() => loadConfig(env, tempDir())).toThrow(/DEEPSEEK_API_KEY is not set/);
+  });
+
+  it.skipIf(process.platform === 'win32')('creates the file with mode 0600', () => {
+    const env = isolatedEnv();
+    const target = saveApiKey('sk-created', env);
+
+    expect(statSync(target).mode & 0o777).toBe(0o600);
+  });
+
+  it.skipIf(process.platform === 'win32')('tightens an existing loose file to 0600', () => {
+    const env = isolatedEnv();
+    const target = configPath(env);
+    mkdirSync(dirname(target), { recursive: true });
+    writeFileSync(target, '{"apiKey":"sk-old"}\n', { mode: 0o644 });
+    expect(statSync(target).mode & 0o777).toBe(0o644);
+
+    saveApiKey('sk-new', env);
+
+    expect(statSync(target).mode & 0o777).toBe(0o600);
+    expect(JSON.parse(readFileSync(target, 'utf8'))).toEqual({ apiKey: 'sk-new' });
   });
 });

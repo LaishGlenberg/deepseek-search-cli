@@ -1,9 +1,20 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Readable } from 'node:stream';
 import { describe, expect, it } from 'vitest';
 import { main, parseArgs, UsageError } from '../src/cli.js';
+import { loadConfig } from '../src/config.js';
 import type { SearchResult } from '../src/types.js';
+
+/** Keep `dsearch auth` away from the developer's real config file. */
+function configEnv(dir: string): NodeJS.ProcessEnv {
+  return process.platform === 'win32' ? { APPDATA: dir } : { XDG_CONFIG_HOME: dir };
+}
+
+function pipedStdin(input: string): NodeJS.ReadStream {
+  return Readable.from([input]) as unknown as NodeJS.ReadStream;
+}
 
 function result(overrides: Partial<SearchResult> = {}): SearchResult {
   return {
@@ -296,8 +307,60 @@ describe('main', () => {
     const dir = mkdtempSync(join(tmpdir(), 'dsearch-test-'));
 
     try {
-      expect(await main(['search', 'q'], { ...deps, env: {}, cwd: dir })).toBe(2);
+      expect(await main(['search', 'q'], { ...deps, env: configEnv(dir), cwd: dir })).toBe(2);
       expect(stderr.join('\n')).toContain('DEEPSEEK_API_KEY');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('saves a piped API key with dsearch auth', async () => {
+    const { stdout, stderr, deps } = capture();
+    const dir = mkdtempSync(join(tmpdir(), 'dsearch-auth-'));
+
+    try {
+      const code = await main(['auth'], {
+        ...deps,
+        env: configEnv(dir),
+        stdin: pipedStdin('  sk-piped  \n'),
+      });
+
+      expect(code).toBe(0);
+      expect(stderr).toEqual([]);
+      expect(stdout.join('\n')).toContain('Saved API key to');
+      expect(loadConfig(configEnv(dir), dir).apiKey).toBe('sk-piped');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects empty piped input', async () => {
+    const { stderr, deps } = capture();
+    const dir = mkdtempSync(join(tmpdir(), 'dsearch-auth-'));
+
+    try {
+      const code = await main(['auth'], { ...deps, env: configEnv(dir), stdin: pipedStdin('') });
+
+      expect(code).toBe(2);
+      expect(stderr.join('\n')).toContain('No API key on stdin');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects piped input containing whitespace', async () => {
+    const { stderr, deps } = capture();
+    const dir = mkdtempSync(join(tmpdir(), 'dsearch-auth-'));
+
+    try {
+      const code = await main(['auth'], {
+        ...deps,
+        env: configEnv(dir),
+        stdin: pipedStdin('sk-first\nsk-second\n'),
+      });
+
+      expect(code).toBe(2);
+      expect(stderr.join('\n')).toContain('must not contain whitespace');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
