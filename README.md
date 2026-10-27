@@ -1,0 +1,167 @@
+# deepseek-search-cli
+
+Search the web and fetch pages as Markdown from your terminal, using DeepSeek's
+native [Search and Fetch APIs](https://api-docs.deepseek.com/guides/search).
+
+`dsearch` gives you live web results with titles, URLs, dates, relevance scores, and
+optional full page content. It is a small, zero-dependency wrapper around:
+
+- `POST /v1/tools/search` — find web pages for a query
+- `POST /v1/tools/fetch` — retrieve a page as Markdown
+
+## Quick start
+
+```bash
+npm install -g deepseek-search-cli
+export DEEPSEEK_API_KEY=sk-...
+dsearch "DeepSeek V4 release"
+```
+
+You can also keep the key in a `.env` file in the current directory:
+
+```bash
+# .env
+DEEPSEEK_API_KEY=sk-...
+```
+
+```bash
+dsearch search "DeepSeek site:github.com after:2025" -n 5
+```
+
+## Install
+
+Requires Node.js 20 or newer.
+
+```bash
+npm install -g deepseek-search-cli
+# or run without installing
+npx deepseek-search-cli "DeepSeek V4 release"
+```
+
+## Usage
+
+```text
+dsearch search <query...> [options]
+dsearch fetch <url> [options]
+dsearch "<query>" [options]
+```
+
+### `dsearch search`
+
+| Option | Description |
+| --- | --- |
+| `-n, --count <1-50>` | Number of results to return (default `10`) |
+| `--content` | Include full page content in each result |
+| `--ori-question <text>` | Original user question, improves query understanding |
+| `--localization <ip>` | IP address used to localize results |
+| `--json` | Print the raw API response as JSON |
+| `-h, --help` | Show help |
+| `-v, --version` | Show the version |
+
+Option values can also use `--count=5`. Everything after `--` is treated as query
+text, which is useful for queries starting with a dash.
+
+### `dsearch fetch`
+
+Fetches a single page and prints its title and Markdown content.
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the raw API response as JSON |
+| `-h, --help` | Show help |
+
+### Examples
+
+```bash
+# Search and print the top 5 results with summaries
+dsearch search "DeepSeek V4 release" -n 5
+
+# Include the full page content of each result
+dsearch "DeepSeek V4 release" --content
+
+# Restrict results by site, language, and date
+dsearch "DeepSeek site:github.com OR site:huggingface.co lang:en after:2025"
+
+# Pipe URLs into other tools
+dsearch search "DeepSeek API docs" --json | jq -r '.results[].url'
+
+# Fetch a page as Markdown
+dsearch fetch https://api-docs.deepseek.com/guides/search
+```
+
+Search output looks like this:
+
+```text
+2 results for "DeepSeek V4 release"
+
+1. DeepSeek V4 model released [2.4]
+   https://example.com/deepseek-v4
+   Example News · 2026-06-01 · authority 3
+
+   DeepSeek has released the V4 model. The release adds improved tool calling
+   and long-context support for agent workflows.
+
+2. DeepSeek V4 benchmark results [2.1]
+   https://example.com/deepseek-v4-benchmarks
+   Example Research · 2026-06-02 · authority 3
+
+   Benchmark results for the V4 model across reasoning and coding tasks.
+```
+
+`--json` prints the API response unchanged, including `snippet`, `summary`,
+`content`, `site_icon`, `authority`, and `rerank_score` for every result.
+
+## Query operators
+
+The query is sent to DeepSeek unchanged, so its search syntax works as documented:
+
+| Operator | Example | Description |
+| --- | --- | --- |
+| `site:` | `DeepSeek site:github.com` | Restrict results to a site |
+| `-site:` | `DeepSeek -site:example.com` | Exclude a site |
+| `-` | `DeepSeek -advertisement` | Exclude a term |
+| `"..."` | `DeepSeek "exact phrase"` | Match an exact phrase |
+| `lang:` | `DeepSeek lang:zh,en` | Restrict languages |
+| `after:` | `DeepSeek after:2025-01-01` | Published after a date |
+| `before:` | `DeepSeek before:2026-06-01` | Published before a date |
+
+## Environment variables
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `DEEPSEEK_API_KEY` | Yes | API key from [platform.deepseek.com](https://platform.deepseek.com/api_keys) |
+| `DEEPSEEK_BASE_URL` | No | API base URL (default `https://api.deepseek.com`) |
+
+The key is read from the environment first, then from `./.env`.
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Success, including searches with no results |
+| `1` | API or network error |
+| `2` | Usage or configuration error |
+
+A `401` means the API key is missing or invalid, `402` means the account has
+insufficient balance, and `429` means the rate limit was exceeded.
+
+Search and Fetch are billed per successful request ($0.75 per 1,000 requests at the
+time of writing) and rate limited to 100 and 25 requests per second respectively.
+See the [API guide](https://api-docs.deepseek.com/guides/search) for current details.
+
+## Development
+
+```bash
+npm install
+npm run build
+npm test
+npm run lint
+```
+
+Tests use a local mock HTTP server; the optional live API tests are billed and only run
+with `RUN_LIVE_TESTS=1 npm run test:live`. Release and repository conventions live in
+[AGENTS.md](AGENTS.md).
+
+## License
+
+MIT
