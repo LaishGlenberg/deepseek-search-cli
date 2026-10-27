@@ -202,7 +202,7 @@ describe('main', () => {
     expect(code).toBe(0);
     expect(stderr).toEqual([]);
     const output = stdout.join('\n');
-    expect(output).toContain('1 result for "deepseek v4"');
+    expect(output).toContain('1 result for `deepseek v4`');
     expect(output).toContain('DeepSeek V4 released');
     expect(output).toContain('https://example.com/deepseek-v4');
     expect(output).not.toContain('Full page content.');
@@ -288,7 +288,7 @@ describe('main', () => {
       expect(stdout.join('\n')).toBe('Wrote 1 result to notes/out.md');
 
       const markdown = readFileSync(join(dir, 'notes', 'out.md'), 'utf8');
-      expect(markdown).toContain('# Search results for "q"');
+      expect(markdown).toContain('# Search results for `q`');
       expect(markdown).toContain('[DeepSeek V4 released](<https://example.com/deepseek-v4>)');
       expect(markdown).toContain('A longer summary about the release.');
       expect(markdown).toContain('Full page content.');
@@ -341,6 +341,6 @@ describe('main', () => {
     const { stdout, deps } = capture();
 
     expect(await main(['search', 'nothing'], { ...deps, env, fetchImpl: emptyResponse })).toBe(0);
-    expect(stdout.join('\n')).toContain('No results found for "nothing".');
+    expect(stdout.join('\n')).toContain('No results found for `nothing`.');
   });
 });

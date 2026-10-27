@@ -99,7 +99,7 @@ dsearch fetch https://api-docs.deepseek.com/guides/search
 Search output looks like this:
 
 ```text
-2 results for "DeepSeek V4 release"
+2 results for `DeepSeek V4 release`
 
 1. DeepSeek V4 model released [2.4]
    https://example.com/deepseek-v4

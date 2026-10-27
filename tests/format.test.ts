@@ -25,13 +25,13 @@ function result(overrides: Partial<SearchResult> = {}): SearchResult {
 
 describe('formatSearchResults', () => {
   it('handles no results', () => {
-    expect(formatSearchResults('nothing', [])).toBe('No results found for "nothing".');
+    expect(formatSearchResults('nothing', [])).toBe('No results found for `nothing`.');
   });
 
   it('formats rank, title, URL, metadata, and summary', () => {
     const output = formatSearchResults('deepseek', [result()]);
 
-    expect(output).toContain('1 result for "deepseek"');
+    expect(output).toContain('1 result for `deepseek`');
     expect(output).toContain('1. DeepSeek V4 released [2.5]');
     expect(output).toContain('https://example.com/deepseek-v4');
     expect(output).toContain('Example News · 2026-06-01 · authority 3');
@@ -45,7 +45,7 @@ describe('formatSearchResults', () => {
       result({ summary: '', title: 'Second', date: null, site_name: null, authority: -1 }),
     ]);
 
-    expect(output).toContain('2 results for "q"');
+    expect(output).toContain('2 results for `q`');
     expect(output).toContain('Short snippet.');
     expect(output).not.toContain('authority');
   });
@@ -81,7 +81,7 @@ describe('formatSearchMarkdown', () => {
   it('renders linked titles, metadata, and summaries', () => {
     const markdown = formatSearchMarkdown('deepseek v4', [result()]);
 
-    expect(markdown).toContain('# Search results for "deepseek v4"');
+    expect(markdown).toContain('# Search results for `deepseek v4`');
     expect(markdown).toContain('## 1. [DeepSeek V4 released](<https://example.com/deepseek-v4>)');
     expect(markdown).toContain('- Example News · 2026-06-01 · Score 2.5 · Authority 3');
     expect(markdown).toContain('Long summary line one.\nLine two.');
@@ -96,7 +96,7 @@ describe('formatSearchMarkdown', () => {
   });
 
   it('handles no results', () => {
-    expect(formatSearchMarkdown('nothing', [])).toBe('# Search results for "nothing"\n\nNo results found.\n');
+    expect(formatSearchMarkdown('nothing', [])).toBe('# Search results for `nothing`\n\nNo results found.\n');
   });
 
   it('escapes link text and skips missing metadata', () => {

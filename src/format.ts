@@ -29,10 +29,10 @@ export function formatSearchResults(
   options: FormatSearchOptions = {},
 ): string {
   if (results.length === 0) {
-    return `No results found for "${query}".`;
+    return `No results found for \`${query}\`.`;
   }
 
-  const header = `${results.length} result${results.length === 1 ? '' : 's'} for "${query}"`;
+  const header = `${results.length} result${results.length === 1 ? '' : 's'} for \`${query}\``;
   const blocks: string[] = [];
 
   results.forEach((result, index) => {
@@ -85,7 +85,7 @@ export function formatSearchMarkdown(
   results: SearchResult[],
   options: FormatSearchOptions = {},
 ): string {
-  const lines = [`# Search results for "${escapeInline(query.trim())}"`, ''];
+  const lines = [`# Search results for \`${query.trim()}\``, ''];
 
   if (results.length === 0) {
     lines.push('No results found.');

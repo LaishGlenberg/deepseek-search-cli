@@ -51,7 +51,7 @@ describe('built CLI against a local HTTP server', () => {
 
       expect(code).toBe(0);
       expect(stderr).toBe('');
-      expect(stdout).toContain('1 result for "deepseek v4"');
+      expect(stdout).toContain('1 result for `deepseek v4`');
       expect(stdout).toContain('Result for deepseek v4');
       expect(stdout).toContain('Full content from the mock server.');
       expect(server.requests[0]).toMatchObject({
@@ -112,7 +112,7 @@ describe('built CLI against a local HTTP server', () => {
       expect(search.code).toBe(0);
       expect(search.stdout).toContain('Wrote 1 result to');
       const searchMarkdown = readFileSync(join(dir, 'search.md'), 'utf8');
-      expect(searchMarkdown).toContain('# Search results for "deepseek v4"');
+      expect(searchMarkdown).toContain('# Search results for `deepseek v4`');
       expect(searchMarkdown).toContain('Result for deepseek v4');
       expect(searchMarkdown).toContain('Full content from the mock server.');
 
