@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -144,5 +144,24 @@ describe('user config file', () => {
 
     expect(statSync(target).mode & 0o777).toBe(0o600);
     expect(JSON.parse(readFileSync(target, 'utf8'))).toEqual({ apiKey: 'sk-new' });
+  });
+
+  it('replaces an existing key without leaving a temp file', () => {
+    const env = isolatedEnv();
+    const target = saveApiKey('sk-one', env);
+
+    expect(saveApiKey('sk-two', env)).toBe(target);
+    expect(JSON.parse(readFileSync(target, 'utf8'))).toEqual({ apiKey: 'sk-two' });
+    expect(readdirSync(dirname(target))).toEqual(['config.json']);
+  });
+
+  it('cleans up the temp file when the save fails', () => {
+    const env = isolatedEnv();
+    const target = configPath(env);
+    // A directory at the target path makes the final rename fail.
+    mkdirSync(target, { recursive: true });
+
+    expect(() => saveApiKey('sk-fail', env)).toThrow();
+    expect(readdirSync(dirname(target))).toEqual(['config.json']);
   });
 });

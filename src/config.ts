@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -78,7 +78,17 @@ function readStoredApiKey(env: NodeJS.ProcessEnv): string | undefined {
 export function saveApiKey(apiKey: string, env: NodeJS.ProcessEnv = process.env): string {
   const target = configPath(env);
   mkdirSync(dirname(target), { recursive: true });
-  writeFileSync(target, `${JSON.stringify({ apiKey }, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
+
+  // Write privately to a temp file, then rename, so the config is never left
+  // half-written if the process dies mid-save.
+  const temp = `${target}.${process.pid}.tmp`;
+  try {
+    writeFileSync(temp, `${JSON.stringify({ apiKey }, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
+    renameSync(temp, target);
+  } catch (error) {
+    rmSync(temp, { force: true });
+    throw error;
+  }
 
   // `mode` only applies when the file is created, so tighten a file that already
   // existed with looser permissions. Windows ignores POSIX modes.
