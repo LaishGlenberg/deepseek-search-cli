@@ -54,12 +54,14 @@ dsearch "<query>" [options]
 | `--content` | Include full page content in each result |
 | `--ori-question <text>` | Original user question, improves query understanding |
 | `--localization <ip>` | IP address used to localize results |
+| `-o, --output <file>` | Write results as Markdown to a file instead of stdout |
 | `--json` | Print the raw API response as JSON |
 | `-h, --help` | Show help |
 | `-v, --version` | Show the version |
 
 Option values can also use `--count=5`. Everything after `--` is treated as query
-text, which is useful for queries starting with a dash.
+text, which is useful for queries starting with a dash. Options may come before or
+after the query in shorthand mode. `--json` cannot be combined with `--output`.
 
 ### `dsearch fetch`
 
@@ -67,6 +69,7 @@ Fetches a single page and prints its title and Markdown content.
 
 | Option | Description |
 | --- | --- |
+| `-o, --output <file>` | Write the page as Markdown to a file instead of stdout |
 | `--json` | Print the raw API response as JSON |
 | `-h, --help` | Show help |
 
@@ -84,6 +87,10 @@ dsearch "DeepSeek site:github.com OR site:huggingface.co lang:en after:2025"
 
 # Pipe URLs into other tools
 dsearch search "DeepSeek API docs" --json | jq -r '.results[].url'
+
+# Save results or a fetched page as Markdown (parent directories are created)
+dsearch "DeepSeek V4 release" -n 5 -o notes/deepseek-v4.md
+dsearch fetch https://api-docs.deepseek.com/guides/search -o docs/search-api.md
 
 # Fetch a page as Markdown
 dsearch fetch https://api-docs.deepseek.com/guides/search

@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -95,6 +95,37 @@ describe('built CLI against a local HTTP server', () => {
         body: { url: 'https://example.com/article' },
       });
     } finally {
+      await server.close();
+    }
+  });
+
+  it('writes search results and fetched pages to Markdown files', async () => {
+    const server = await startMockServer();
+    const dir = mkdtempSync(join(tmpdir(), 'dsearch-md-'));
+
+    try {
+      const search = await runCli(
+        ['search', 'deepseek v4', '--content', '-o', join(dir, 'search.md')],
+        { env: envFor(server.url) },
+      );
+
+      expect(search.code).toBe(0);
+      expect(search.stdout).toContain('Wrote 1 result to');
+      const searchMarkdown = readFileSync(join(dir, 'search.md'), 'utf8');
+      expect(searchMarkdown).toContain('# Search results for "deepseek v4"');
+      expect(searchMarkdown).toContain('Result for deepseek v4');
+      expect(searchMarkdown).toContain('Full content from the mock server.');
+
+      const fetched = await runCli(
+        ['fetch', 'https://example.com/article', '--output', 'pages/page.md'],
+        { env: envFor(server.url), cwd: dir },
+      );
+
+      expect(fetched.code).toBe(0);
+      expect(fetched.stdout).toContain('Wrote page to pages/page.md');
+      expect(readFileSync(join(dir, 'pages', 'page.md'), 'utf8')).toContain('# Mock page');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
       await server.close();
     }
   });

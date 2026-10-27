@@ -63,3 +63,59 @@ export function formatPage(page: FetchResponse): string {
   if (!content) return title;
   return `${title}\n\n${content}`;
 }
+
+function escapeInline(text: string): string {
+  return text.replace(/([\\[\]])/g, '\\$1');
+}
+
+function markdownMetadata(result: SearchResult): string | undefined {
+  const parts: string[] = [];
+  if (result.site_name) parts.push(result.site_name);
+  if (result.date) parts.push(result.date.slice(0, 10));
+  if (Number.isFinite(result.rerank_score)) parts.push(`Score ${result.rerank_score.toFixed(1)}`);
+  if (Number.isFinite(result.authority) && result.authority >= 0) {
+    parts.push(`Authority ${result.authority}`);
+  }
+  return parts.length > 0 ? `- ${parts.join(' · ')}` : undefined;
+}
+
+/** Render search results as a Markdown document. */
+export function formatSearchMarkdown(
+  query: string,
+  results: SearchResult[],
+  options: FormatSearchOptions = {},
+): string {
+  const lines = [`# Search results for "${escapeInline(query.trim())}"`, ''];
+
+  if (results.length === 0) {
+    lines.push('No results found.');
+    return `${lines.join('\n')}\n`;
+  }
+
+  results.forEach((result, index) => {
+    const title = escapeInline((result.title || '(untitled)').trim());
+    lines.push(`## ${index + 1}. [${title}](<${result.url}>)`, '');
+
+    const metadata = markdownMetadata(result);
+    if (metadata) lines.push(metadata, '');
+
+    const body = (result.summary || result.snippet).trim();
+    if (body) lines.push(body, '');
+
+    if (options.content && result.content.trim()) {
+      lines.push('### Content', '', result.content.trim(), '');
+    }
+  });
+
+  return `${lines.join('\n').trimEnd()}\n`;
+}
+
+/** Render a fetched page as a Markdown document. */
+export function formatPageMarkdown(page: FetchResponse): string {
+  const title = page.title.trim();
+  const content = page.content.trim();
+  const parts: string[] = [];
+  if (title) parts.push(`# ${title}`);
+  if (content) parts.push(content);
+  return parts.length > 0 ? `${parts.join('\n\n')}\n` : '';
+}

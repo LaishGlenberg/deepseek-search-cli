@@ -1,6 +1,9 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+
 import { createClient, DeepSeekApiError } from './client.js';
 import { ConfigError, loadConfig } from './config.js';
-import { formatPage, formatSearchResults } from './format.js';
+import { formatPage, formatPageMarkdown, formatSearchMarkdown, formatSearchResults } from './format.js';
 import { VERSION } from './version.js';
 
 export const HELP = `dsearch — DeepSeek web search from the terminal
@@ -25,6 +28,7 @@ Fetch options:
       --json               Print the raw API response as JSON
 
 Global options:
+  -o, --output <file>  Write Markdown to a file instead of stdout
   -h, --help       Show this help
   -v, --version    Show the version
 
@@ -35,7 +39,8 @@ Environment:
 Examples:
   dsearch search "DeepSeek V4 release"
   dsearch "DeepSeek site:github.com after:2025" -n 5 --json
-  dsearch fetch https://api-docs.deepseek.com/guides/search`;
+  dsearch "DeepSeek V4 release" -o results.md
+  dsearch fetch https://api-docs.deepseek.com/guides/search --output docs/search.md`;
 
 export class UsageError extends Error {
   constructor(message: string) {
@@ -52,12 +57,14 @@ export interface SearchCommand {
   oriQuestion?: string;
   localization?: string;
   json: boolean;
+  output?: string;
 }
 
 export interface FetchCommand {
   kind: 'fetch';
   url: string;
   json: boolean;
+  output?: string;
 }
 
 export type ParsedCommand =
@@ -116,6 +123,7 @@ function parseSearch(tokens: string[]): ParsedCommand {
   let oriQuestion: string | undefined;
   let localization: string | undefined;
   let json = false;
+  let output: string | undefined;
   let endOfOptions = false;
   const queryParts: string[] = [];
 
@@ -162,6 +170,13 @@ function parseSearch(tokens: string[]): ParsedCommand {
           index = next;
           break;
         }
+        case '-o':
+        case '--output': {
+          const { value, next } = takeValue(tokens, index, option);
+          output = requireValue(value, option.name);
+          index = next;
+          break;
+        }
         default:
           throw new UsageError(`Unknown option: ${token}`);
       }
@@ -182,7 +197,11 @@ function parseSearch(tokens: string[]): ParsedCommand {
     throw new UsageError(`Search query must be 128 characters or fewer (got ${queryLength}).`);
   }
 
-  return { kind: 'search', query, count, needContent, oriQuestion, localization, json };
+  if (json && output) {
+    throw new UsageError('--json cannot be combined with --output.');
+  }
+
+  return { kind: 'search', query, count, needContent, oriQuestion, localization, json, output };
 }
 
 function validateUrl(value: string): void {
@@ -206,6 +225,7 @@ function validateUrl(value: string): void {
 
 function parseFetch(tokens: string[]): ParsedCommand {
   let json = false;
+  let output: string | undefined;
   let url: string | undefined;
   let endOfOptions = false;
 
@@ -229,6 +249,15 @@ function parseFetch(tokens: string[]): ParsedCommand {
     }
 
     if (!endOfOptions && token.startsWith('-') && token !== '-') {
+      const option = splitOption(token);
+
+      if (option.name === '-o' || option.name === '--output') {
+        const { value, next } = takeValue(tokens, index, option);
+        output = requireValue(value, option.name);
+        index = next;
+        continue;
+      }
+
       throw new UsageError(`Unknown option: ${token}`);
     }
 
@@ -244,8 +273,12 @@ function parseFetch(tokens: string[]): ParsedCommand {
     throw new UsageError('Missing URL. Usage: dsearch fetch <url>');
   }
 
+  if (json && output) {
+    throw new UsageError('--json cannot be combined with --output.');
+  }
+
   validateUrl(url);
-  return { kind: 'fetch', url, json };
+  return { kind: 'fetch', url, json, output };
 }
 
 /** Search options that may appear before the query in shorthand mode. */
@@ -311,6 +344,12 @@ function apiHint(status: number): string | undefined {
   }
 }
 
+function writeMarkdown(path: string, markdown: string, cwd: string): void {
+  const target = resolve(cwd, path);
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, markdown, 'utf8');
+}
+
 export async function main(argv: string[], deps: CliDeps = {}): Promise<number> {
   const out = deps.out ?? ((message: string) => console.log(message));
   const err = deps.err ?? ((message: string) => console.error(message));
@@ -361,14 +400,30 @@ export async function main(argv: string[], deps: CliDeps = {}): Promise<number> 
         oriQuestion: command.oriQuestion,
         localization: command.localization,
       });
-      out(
-        command.json
-          ? JSON.stringify(response, null, 2)
-          : formatSearchResults(command.query, response.results, { content: command.needContent }),
-      );
+
+      if (command.output) {
+        const markdown = formatSearchMarkdown(command.query, response.results, {
+          content: command.needContent,
+        });
+        writeMarkdown(command.output, markdown, deps.cwd ?? process.cwd());
+        const total = response.results.length;
+        out(`Wrote ${total} result${total === 1 ? '' : 's'} to ${command.output}`);
+      } else {
+        out(
+          command.json
+            ? JSON.stringify(response, null, 2)
+            : formatSearchResults(command.query, response.results, { content: command.needContent }),
+        );
+      }
     } else {
       const page = await client.fetchPage(command.url);
-      out(command.json ? JSON.stringify(page, null, 2) : formatPage(page));
+
+      if (command.output) {
+        writeMarkdown(command.output, formatPageMarkdown(page), deps.cwd ?? process.cwd());
+        out(`Wrote page to ${command.output}`);
+      } else {
+        out(command.json ? JSON.stringify(page, null, 2) : formatPage(page));
+      }
     }
     return 0;
   } catch (error) {

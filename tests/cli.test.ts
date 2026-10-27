@@ -1,3 +1,6 @@
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { main, parseArgs, UsageError } from '../src/cli.js';
 import type { SearchResult } from '../src/types.js';
@@ -132,6 +135,26 @@ describe('parseArgs', () => {
     expect(parseArgs(['search', 'x'.repeat(128)])).toMatchObject({ kind: 'search' });
   });
 
+  it('parses output options for search and fetch', () => {
+    expect(parseArgs(['search', 'q', '-o', 'out.md'])).toMatchObject({ output: 'out.md' });
+    expect(parseArgs(['deep release', '--output=notes/out.md'])).toMatchObject({
+      kind: 'search',
+      output: 'notes/out.md',
+    });
+    expect(parseArgs(['fetch', 'https://example.com', '-o', 'page.md'])).toMatchObject({
+      kind: 'fetch',
+      output: 'page.md',
+    });
+  });
+
+  it('rejects invalid output options', () => {
+    expect(() => parseArgs(['search', 'q', '-o'])).toThrow(UsageError);
+    expect(() => parseArgs(['search', 'q', '--output='])).toThrow(UsageError);
+    expect(() => parseArgs(['fetch', 'https://example.com', '--output'])).toThrow(UsageError);
+    expect(() => parseArgs(['search', 'q', '-o', 'x.md', '--json'])).toThrow(/--json/);
+    expect(() => parseArgs(['fetch', 'https://example.com', '-o', 'x.md', '--json'])).toThrow(/--json/);
+  });
+
   it('rejects unknown options', () => {
     expect(() => parseArgs(['--bogus'])).toThrow(UsageError);
     expect(() => parseArgs(['search', 'q', '--bogus'])).toThrow(UsageError);
@@ -223,9 +246,6 @@ describe('main', () => {
 
   it('returns 2 when the API key is missing', async () => {
     const { stderr, deps } = capture();
-    const { mkdtempSync, rmSync } = await import('node:fs');
-    const { tmpdir } = await import('node:os');
-    const { join } = await import('node:path');
     const dir = mkdtempSync(join(tmpdir(), 'dsearch-test-'));
 
     try {
@@ -250,6 +270,71 @@ describe('main', () => {
 
     expect(await main(['search', 'q'], { ...deps, env, fetchImpl: connectionFailure })).toBe(1);
     expect(stderr.join('\n')).toContain('Could not reach the DeepSeek API');
+  });
+
+  it('writes search results to a Markdown file and creates parent directories', async () => {
+    const { stdout, deps } = capture();
+    const dir = mkdtempSync(join(tmpdir(), 'dsearch-out-'));
+
+    try {
+      const code = await main(['search', 'q', '-n', '1', '--content', '-o', 'notes/out.md'], {
+        ...deps,
+        env,
+        cwd: dir,
+        fetchImpl: searchResponse,
+      });
+
+      expect(code).toBe(0);
+      expect(stdout.join('\n')).toBe('Wrote 1 result to notes/out.md');
+
+      const markdown = readFileSync(join(dir, 'notes', 'out.md'), 'utf8');
+      expect(markdown).toContain('# Search results for "q"');
+      expect(markdown).toContain('[DeepSeek V4 released](<https://example.com/deepseek-v4>)');
+      expect(markdown).toContain('A longer summary about the release.');
+      expect(markdown).toContain('Full page content.');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('writes a fetched page to a Markdown file', async () => {
+    const { stdout, deps } = capture();
+    const dir = mkdtempSync(join(tmpdir(), 'dsearch-out-'));
+
+    try {
+      const code = await main(['fetch', 'https://example.com', '--output', 'page.md'], {
+        ...deps,
+        env,
+        cwd: dir,
+        fetchImpl: pageResponse,
+      });
+
+      expect(code).toBe(0);
+      expect(stdout.join('\n')).toBe('Wrote page to page.md');
+      expect(readFileSync(join(dir, 'page.md'), 'utf8')).toBe('# Example\n\n# Body\n');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('returns 1 when the output file cannot be written', async () => {
+    const { stderr, deps } = capture();
+    const dir = mkdtempSync(join(tmpdir(), 'dsearch-out-'));
+
+    try {
+      // A directory cannot be overwritten as a file, regardless of platform.
+      const code = await main(['search', 'q', '-o', '.'], {
+        ...deps,
+        env,
+        cwd: dir,
+        fetchImpl: searchResponse,
+      });
+
+      expect(code).toBe(1);
+      expect(stderr.join('\n')).toContain('Error:');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('reports empty result sets without failing', async () => {

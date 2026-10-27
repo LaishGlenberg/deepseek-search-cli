@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { formatPage, formatSearchResults } from '../src/format.js';
+import {
+  formatPage,
+  formatPageMarkdown,
+  formatSearchMarkdown,
+  formatSearchResults,
+} from '../src/format.js';
 import type { SearchResult } from '../src/types.js';
 
 function result(overrides: Partial<SearchResult> = {}): SearchResult {
@@ -69,5 +74,62 @@ describe('formatPage', () => {
   it('omits empty parts', () => {
     expect(formatPage({ title: '', content: 'Body' })).toBe('Body');
     expect(formatPage({ title: 'Title', content: '' })).toBe('Title');
+  });
+});
+
+describe('formatSearchMarkdown', () => {
+  it('renders linked titles, metadata, and summaries', () => {
+    const markdown = formatSearchMarkdown('deepseek v4', [result()]);
+
+    expect(markdown).toContain('# Search results for "deepseek v4"');
+    expect(markdown).toContain('## 1. [DeepSeek V4 released](<https://example.com/deepseek-v4>)');
+    expect(markdown).toContain('- Example News · 2026-06-01 · Score 2.5 · Authority 3');
+    expect(markdown).toContain('Long summary line one.\nLine two.');
+    expect(markdown).not.toContain('Full page content.');
+    expect(markdown.endsWith('\n')).toBe(true);
+  });
+
+  it('includes page content when requested', () => {
+    const markdown = formatSearchMarkdown('q', [result()], { content: true });
+
+    expect(markdown).toContain('### Content\n\nFull page content.');
+  });
+
+  it('handles no results', () => {
+    expect(formatSearchMarkdown('nothing', [])).toBe('# Search results for "nothing"\n\nNo results found.\n');
+  });
+
+  it('escapes link text and skips missing metadata', () => {
+    const markdown = formatSearchMarkdown('q', [
+      result({
+        title: 'A [b] c',
+        rerank_score: Number.NaN,
+        date: null,
+        site_name: null,
+        authority: -1,
+        summary: '',
+        snippet: '',
+      }),
+    ]);
+
+    expect(markdown).toContain('## 1. [A \\[b\\] c](<https://example.com/deepseek-v4>)');
+    expect(markdown).not.toContain('Score');
+    expect(markdown).not.toContain('·');
+  });
+
+  it('falls back to the snippet when there is no summary', () => {
+    expect(formatSearchMarkdown('q', [result({ summary: '' })])).toContain('Short snippet.');
+  });
+});
+
+describe('formatPageMarkdown', () => {
+  it('renders a title heading and the page content', () => {
+    expect(formatPageMarkdown({ title: 'Page', content: '# Heading' })).toBe('# Page\n\n# Heading\n');
+  });
+
+  it('omits empty parts', () => {
+    expect(formatPageMarkdown({ title: '', content: 'Body' })).toBe('Body\n');
+    expect(formatPageMarkdown({ title: 'Title', content: '' })).toBe('# Title\n');
+    expect(formatPageMarkdown({ title: '', content: '' })).toBe('');
   });
 });
