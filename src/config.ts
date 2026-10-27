@@ -1,5 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { dirname, join } from 'node:path';
 
 export const DEFAULT_BASE_URL = 'https://api.deepseek.com';
 
@@ -50,19 +51,51 @@ function readDotEnv(cwd: string): Record<string, string> {
   }
 }
 
+/** Path of the user-level config file written by `dsearch auth`. */
+export function configPath(env: NodeJS.ProcessEnv = process.env): string {
+  if (process.platform === 'win32') {
+    const base = env.APPDATA?.trim() || join(homedir(), 'AppData', 'Roaming');
+    return join(base, 'dsearch', 'config.json');
+  }
+  const base = env.XDG_CONFIG_HOME?.trim() || join(homedir(), '.config');
+  return join(base, 'dsearch', 'config.json');
+}
+
+function readStoredApiKey(env: NodeJS.ProcessEnv): string | undefined {
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(configPath(env), 'utf8'));
+    if (parsed && typeof parsed === 'object' && 'apiKey' in parsed) {
+      const value = (parsed as { apiKey?: unknown }).apiKey;
+      if (typeof value === 'string' && value.trim()) return value.trim();
+    }
+  } catch {
+    // Missing or malformed config file: fall through to the error below.
+  }
+  return undefined;
+}
+
+/** Save the API key to the user config file and return the path written. */
+export function saveApiKey(apiKey: string, env: NodeJS.ProcessEnv = process.env): string {
+  const target = configPath(env);
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, `${JSON.stringify({ apiKey }, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
+  return target;
+}
+
 /**
- * Resolve configuration from the process environment, falling back to `./.env`.
- * Throws `ConfigError` with setup instructions when the API key is missing.
+ * Resolve configuration from the environment, then `./.env`, then the user config
+ * file written by `dsearch auth`. Throws `ConfigError` when the API key is missing.
  */
 export function loadConfig(env: NodeJS.ProcessEnv = process.env, cwd: string = process.cwd()): Config {
   const fileValues = readDotEnv(cwd);
-  const apiKey = env.DEEPSEEK_API_KEY?.trim() || fileValues.DEEPSEEK_API_KEY?.trim();
+  const apiKey =
+    env.DEEPSEEK_API_KEY?.trim() || fileValues.DEEPSEEK_API_KEY?.trim() || readStoredApiKey(env);
   const baseUrl = env.DEEPSEEK_BASE_URL?.trim() || fileValues.DEEPSEEK_BASE_URL?.trim() || DEFAULT_BASE_URL;
 
   if (!apiKey) {
     throw new ConfigError(
       'DEEPSEEK_API_KEY is not set.\n' +
-        'Set it in your environment or add it to a .env file:\n' +
+        'Run `dsearch auth` to save your key, or set it in your environment or a .env file:\n' +
         '  DEEPSEEK_API_KEY=sk-...\n' +
         'Create a key at https://platform.deepseek.com/api_keys',
     );

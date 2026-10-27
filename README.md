@@ -17,16 +17,13 @@ optional full page content. It is a small, zero-dependency wrapper around:
 
 ```bash
 npm install -g deepseek-search-cli
-export DEEPSEEK_API_KEY=sk-...
+dsearch auth
 dsearch "DeepSeek V4 release"
 ```
 
-You can also keep the key in a `.env` file in the current directory:
-
-```bash
-# .env
-DEEPSEEK_API_KEY=sk-...
-```
+`dsearch auth` prompts for your API key (input is hidden, or pipe it in) and saves it
+for every project. It prints the file it wrote. `DEEPSEEK_API_KEY` and a `.env` in the
+current directory take precedence over the saved key.
 
 ```bash
 dsearch search "DeepSeek site:github.com after:2025" -n 5

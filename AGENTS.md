@@ -14,7 +14,7 @@ src/
   index.ts      entry point (shebang, exit code)
   cli.ts        argument parsing, help text, command runner
   client.ts     Search/Fetch HTTP client and DeepSeekApiError
-  config.ts     env and .env resolution, ConfigError
+  config.ts     env, .env, and `dsearch auth` key resolution, ConfigError
   format.ts     terminal output
   types.ts      API request/response types
   version.ts    reads version from package.json

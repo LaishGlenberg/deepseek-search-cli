@@ -45,8 +45,13 @@
   ],
   "author": "LaishGlenberg",
   "license": "MIT",
-  "publishConfig": {
-    "access": "public"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LaishGlenberg/deepseek-search-cli.git"
+  },
+  "homepage": "https://github.com/LaishGlenberg/deepseek-search-cli#readme",
+  "bugs": {
+    "url": "https://github.com/LaishGlenberg/deepseek-search-cli/issues"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
 import { createClient, DeepSeekApiError } from './client.js';
-import { ConfigError, loadConfig } from './config.js';
+import { ConfigError, loadConfig, saveApiKey } from './config.js';
 import { formatPage, formatPageMarkdown, formatSearchMarkdown, formatSearchResults, unescapeMarkdown } from './format.js';
 import { VERSION } from './version.js';
 
@@ -11,12 +11,14 @@ export const HELP = `dsearch — DeepSeek web search from the terminal
 Usage:
   dsearch search <query...> [options]
   dsearch fetch <url> [options]
+  dsearch auth
   dsearch "<query>" [options]
   dsearch <url> [options]
 
 Commands:
   search <query...>   Search the web with DeepSeek
   fetch <url>         Fetch a single page as Markdown
+  auth                Save your DeepSeek API key for all projects
 
 Search options:
   -n, --count <1-50>       Number of results to return (default 10)
@@ -35,10 +37,11 @@ Global options:
   -v, --version    Show the version
 
 Environment:
-  DEEPSEEK_API_KEY    Required. Also read from ./.env
+  DEEPSEEK_API_KEY    Required. Also read from ./.env or the 'dsearch auth' key
   DEEPSEEK_BASE_URL   Optional API base URL (default https://api.deepseek.com)
 
 Examples:
+  dsearch auth
   dsearch search "DeepSeek V4 release"
   dsearch "DeepSeek site:github.com after:2025" -n 5 --json
   dsearch "DeepSeek V4 release" -o results.md
@@ -76,6 +79,7 @@ export interface FetchCommand {
 export type ParsedCommand =
   | { kind: 'help' }
   | { kind: 'version' }
+  | { kind: 'auth' }
   | SearchCommand
   | FetchCommand;
 
@@ -318,6 +322,10 @@ export function parseArgs(argv: string[]): ParsedCommand {
   if (first === 'fetch') {
     return parseFetch(rest);
   }
+  if (first === 'auth') {
+    if (rest.length > 0) throw new UsageError('auth takes no arguments.');
+    return { kind: 'auth' };
+  }
   if (/^https?:\/\//i.test(first)) {
     return parseFetch(argv);
   }
@@ -364,6 +372,75 @@ function writeOutput(path: string, contents: string, cwd: string): void {
   writeFileSync(target, contents, 'utf8');
 }
 
+function readPipedKey(): Promise<string> {
+  return new Promise((succeed, fail) => {
+    const chunks: string[] = [];
+    process.stdin.setEncoding('utf8');
+    process.stdin.on('data', (chunk: string) => chunks.push(chunk));
+    process.stdin.on('end', () => succeed(chunks.join('').trim()));
+    process.stdin.on('error', fail);
+    process.stdin.resume();
+  });
+}
+
+/** Read the key from a TTY without echoing it. */
+function readTtyKey(): Promise<string> {
+  return new Promise((succeed, fail) => {
+    const stdin = process.stdin;
+    let key = '';
+
+    const finish = (result: string | UsageError) => {
+      stdin.setRawMode(false);
+      stdin.pause();
+      stdin.off('data', onData);
+      process.stdout.write('\n');
+      if (result instanceof UsageError) fail(result);
+      else succeed(result);
+    };
+
+    const onData = (chunk: string) => {
+      for (const char of chunk) {
+        if (char === '\r' || char === '\n') return finish(key.trim());
+        if (char === '\u0003') return finish(new UsageError('Cancelled.'));
+        if (char === '\u007f' || char === '\b') {
+          key = key.slice(0, -1);
+          continue;
+        }
+        key += char;
+      }
+    };
+
+    stdin.setRawMode(true);
+    stdin.setEncoding('utf8');
+    stdin.resume();
+    stdin.on('data', onData);
+  });
+}
+
+async function runAuth(deps: CliDeps): Promise<number> {
+  const out = deps.out ?? ((message: string) => console.log(message));
+  const err = deps.err ?? ((message: string) => console.error(message));
+  const piped = !process.stdin.isTTY;
+
+  try {
+    if (!piped) process.stdout.write('DeepSeek API key (input hidden): ');
+    const apiKey = (piped ? await readPipedKey() : await readTtyKey()).trim();
+    if (!apiKey) throw new UsageError(piped ? 'No API key on stdin.' : 'No API key entered.');
+    if (/\s/.test(apiKey)) throw new UsageError('API key must not contain whitespace.');
+
+    const target = saveApiKey(apiKey, deps.env);
+    out(`Saved API key to ${target}`);
+    return 0;
+  } catch (error) {
+    if (error instanceof UsageError) {
+      err(`Error: ${error.message}`);
+      return 2;
+    }
+    err(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    return 1;
+  }
+}
+
 export async function main(argv: string[], deps: CliDeps = {}): Promise<number> {
   const out = deps.out ?? ((message: string) => console.log(message));
   const err = deps.err ?? ((message: string) => console.error(message));
@@ -387,6 +464,9 @@ export async function main(argv: string[], deps: CliDeps = {}): Promise<number> 
   if (command.kind === 'version') {
     out(VERSION);
     return 0;
+  }
+  if (command.kind === 'auth') {
+    return runAuth(deps);
   }
 
   let config;

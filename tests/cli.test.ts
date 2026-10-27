@@ -64,6 +64,11 @@ describe('parseArgs', () => {
     expect(parseArgs(['version'])).toEqual({ kind: 'version' });
   });
 
+  it('parses the auth command', () => {
+    expect(parseArgs(['auth'])).toEqual({ kind: 'auth' });
+    expect(() => parseArgs(['auth', 'extra'])).toThrow(UsageError);
+  });
+
   it('joins positional search words into a query', () => {
     expect(parseArgs(['search', 'deepseek', 'v4', 'release'])).toMatchObject({
       kind: 'search',
