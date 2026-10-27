@@ -58,14 +58,15 @@ page, so `dsearch https://example.com` is shorthand for `dsearch fetch`.
 | `--content` | Include full page content in each result |
 | `--ori-question <text>` | Original user question, improves query understanding |
 | `--localization <ip>` | IP address used to localize results |
-| `-o, --output <file>` | Write results as Markdown to a file instead of stdout |
-| `--json` | Print the raw API response as JSON |
+| `-o, --output <file>` | Write results to a file instead of stdout (JSON with `--json`, Markdown otherwise) |
+| `-j, --json` | Print the raw API response as JSON |
 | `-h, --help` | Show help |
 | `-v, --version` | Show the version |
 
 Option values can also use `--count=5`. Everything after `--` is treated as query
 text, which is useful for queries starting with a dash. Options may come before or
-after the query in shorthand mode. `--json` cannot be combined with `--output`.
+after the query in shorthand mode. Combine `--json` with `--output` to save the raw
+API response to a file.
 
 ### `dsearch fetch`
 
@@ -73,8 +74,8 @@ Fetches a single page and prints its URL, title, and Markdown content.
 
 | Option | Description |
 | --- | --- |
-| `-o, --output <file>` | Write the page as Markdown to a file instead of stdout |
-| `--json` | Print the raw API response as JSON |
+| `-o, --output <file>` | Write the page to a file instead of stdout (JSON with `--json`, Markdown otherwise) |
+| `-j, --json` | Print the raw API response as JSON |
 | `-h, --help` | Show help |
 
 ### Examples
@@ -95,6 +96,10 @@ dsearch search "DeepSeek API docs" --json | jq -r '.results[].url'
 # Save results or a fetched page as Markdown (parent directories are created)
 dsearch "DeepSeek V4 release" -n 5 -o notes/deepseek-v4.md
 dsearch fetch https://api-docs.deepseek.com/guides/search -o docs/search-api.md
+
+# Save the raw API response as JSON
+dsearch "DeepSeek V4 release" -n 5 -j -o results.json
+dsearch fetch https://api-docs.deepseek.com/guides/search --json -o docs/search-api.json
 
 # Fetch a page as Markdown
 dsearch fetch https://api-docs.deepseek.com/guides/search

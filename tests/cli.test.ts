@@ -96,6 +96,7 @@ describe('parseArgs', () => {
       needContent: true,
     });
     expect(parseArgs(['--json', 'deep release'])).toMatchObject({ kind: 'search', json: true });
+    expect(parseArgs(['-j', 'deep release'])).toMatchObject({ kind: 'search', json: true });
     expect(parseArgs(['--', '--json'])).toMatchObject({ kind: 'search', query: '--json' });
     expect(() => parseArgs(['--bogus', 'q'])).toThrow(UsageError);
   });
@@ -107,6 +108,7 @@ describe('parseArgs', () => {
       json: true,
     });
     expect(parseArgs(['search', 'q', '--count=7'])).toMatchObject({ count: 7 });
+    expect(parseArgs(['search', 'q', '-j'])).toMatchObject({ json: true });
     expect(parseArgs(['search', 'q', '--ori-question=what is new', '--localization=1.2.3.4'])).toMatchObject({
       oriQuestion: 'what is new',
       localization: '1.2.3.4',
@@ -145,14 +147,20 @@ describe('parseArgs', () => {
       kind: 'fetch',
       output: 'page.md',
     });
+    expect(parseArgs(['search', 'q', '-j', '-o', 'out.json'])).toMatchObject({
+      json: true,
+      output: 'out.json',
+    });
+    expect(parseArgs(['fetch', 'https://example.com', '--json', '-o', 'page.json'])).toMatchObject({
+      json: true,
+      output: 'page.json',
+    });
   });
 
   it('rejects invalid output options', () => {
     expect(() => parseArgs(['search', 'q', '-o'])).toThrow(UsageError);
     expect(() => parseArgs(['search', 'q', '--output='])).toThrow(UsageError);
     expect(() => parseArgs(['fetch', 'https://example.com', '--output'])).toThrow(UsageError);
-    expect(() => parseArgs(['search', 'q', '-o', 'x.md', '--json'])).toThrow(/--json/);
-    expect(() => parseArgs(['fetch', 'https://example.com', '-o', 'x.md', '--json'])).toThrow(/--json/);
   });
 
   it('rejects unknown options', () => {
@@ -167,6 +175,7 @@ describe('parseArgs', () => {
       json: false,
     });
     expect(parseArgs(['fetch', 'https://example.com', '--json'])).toMatchObject({ json: true });
+    expect(parseArgs(['fetch', 'https://example.com', '-j'])).toMatchObject({ json: true });
 
     expect(() => parseArgs(['fetch'])).toThrow(UsageError);
     expect(() => parseArgs(['fetch', 'not a url'])).toThrow(UsageError);

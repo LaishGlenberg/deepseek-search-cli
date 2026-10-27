@@ -23,13 +23,13 @@ Search options:
       --content            Include full page content in each result
       --ori-question <q>   Original user question, improves query understanding
       --localization <ip>  IP address used to localize results
-      --json               Print the raw API response as JSON
+  -j, --json               Print the raw API response as JSON
 
 Fetch options:
-      --json               Print the raw API response as JSON
+  -j, --json               Print the raw API response as JSON
 
 Global options:
-  -o, --output <file>  Write Markdown to a file instead of stdout
+  -o, --output <file>  Write to a file instead of stdout (JSON with --json, Markdown otherwise)
   -h, --help       Show this help
   -v, --version    Show the version
 
@@ -41,6 +41,7 @@ Examples:
   dsearch search "DeepSeek V4 release"
   dsearch "DeepSeek site:github.com after:2025" -n 5 --json
   dsearch "DeepSeek V4 release" -o results.md
+  dsearch "DeepSeek V4 release" -j -o results.json
   dsearch https://api-docs.deepseek.com/guides/search
   dsearch fetch https://api-docs.deepseek.com/guides/search --output docs/search.md`;
 
@@ -145,6 +146,7 @@ function parseSearch(tokens: string[]): ParsedCommand {
         case '-h':
         case '--help':
           return { kind: 'help' };
+        case '-j':
         case '--json':
           json = true;
           index += 1;
@@ -199,10 +201,6 @@ function parseSearch(tokens: string[]): ParsedCommand {
     throw new UsageError(`Search query must be 128 characters or fewer (got ${queryLength}).`);
   }
 
-  if (json && output) {
-    throw new UsageError('--json cannot be combined with --output.');
-  }
-
   return { kind: 'search', query, count, needContent, oriQuestion, localization, json, output };
 }
 
@@ -244,7 +242,7 @@ function parseFetch(tokens: string[]): ParsedCommand {
       return { kind: 'help' };
     }
 
-    if (!endOfOptions && token === '--json') {
+    if (!endOfOptions && (token === '-j' || token === '--json')) {
       json = true;
       index += 1;
       continue;
@@ -275,10 +273,6 @@ function parseFetch(tokens: string[]): ParsedCommand {
     throw new UsageError('Missing URL. Usage: dsearch fetch <url>');
   }
 
-  if (json && output) {
-    throw new UsageError('--json cannot be combined with --output.');
-  }
-
   validateUrl(url);
   return { kind: 'fetch', url, json, output };
 }
@@ -290,6 +284,7 @@ const SHORTHAND_OPTIONS = new Set([
   '--content',
   '--ori-question',
   '--localization',
+  '-j',
   '--json',
   '--',
 ]);
@@ -349,10 +344,10 @@ function apiHint(status: number): string | undefined {
   }
 }
 
-function writeMarkdown(path: string, markdown: string, cwd: string): void {
+function writeOutput(path: string, contents: string, cwd: string): void {
   const target = resolve(cwd, path);
   mkdirSync(dirname(target), { recursive: true });
-  writeFileSync(target, markdown, 'utf8');
+  writeFileSync(target, contents, 'utf8');
 }
 
 export async function main(argv: string[], deps: CliDeps = {}): Promise<number> {
@@ -407,12 +402,16 @@ export async function main(argv: string[], deps: CliDeps = {}): Promise<number> 
       });
 
       if (command.output) {
-        const markdown = formatSearchMarkdown(command.query, response.results, {
-          content: command.needContent,
-        });
-        writeMarkdown(command.output, markdown, deps.cwd ?? process.cwd());
+        const payload = command.json
+          ? `${JSON.stringify(response, null, 2)}\n`
+          : formatSearchMarkdown(command.query, response.results, { content: command.needContent });
+        writeOutput(command.output, payload, deps.cwd ?? process.cwd());
         const total = response.results.length;
-        out(`Wrote ${total} result${total === 1 ? '' : 's'} to ${command.output}`);
+        out(
+          command.json
+            ? `Wrote JSON to ${command.output}`
+            : `Wrote ${total} result${total === 1 ? '' : 's'} to ${command.output}`,
+        );
       } else {
         out(
           command.json
@@ -424,8 +423,11 @@ export async function main(argv: string[], deps: CliDeps = {}): Promise<number> 
       const page = await client.fetchPage(command.url);
 
       if (command.output) {
-        writeMarkdown(command.output, formatPageMarkdown(command.url, page), deps.cwd ?? process.cwd());
-        out(`Wrote page to ${command.output}`);
+        const payload = command.json
+          ? `${JSON.stringify(page, null, 2)}\n`
+          : formatPageMarkdown(command.url, page);
+        writeOutput(command.output, payload, deps.cwd ?? process.cwd());
+        out(command.json ? `Wrote JSON to ${command.output}` : `Wrote page to ${command.output}`);
       } else {
         out(command.json ? JSON.stringify(page, null, 2) : formatPage(command.url, page));
       }

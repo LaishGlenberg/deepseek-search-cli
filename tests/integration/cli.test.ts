@@ -99,7 +99,7 @@ describe('built CLI against a local HTTP server', () => {
     }
   });
 
-  it('writes search results and fetched pages to Markdown files', async () => {
+  it('writes search results and fetched pages to files', async () => {
     const server = await startMockServer();
     const dir = mkdtempSync(join(tmpdir(), 'dsearch-md-'));
 
@@ -126,6 +126,30 @@ describe('built CLI against a local HTTP server', () => {
       expect(readFileSync(join(dir, 'pages', 'page.md'), 'utf8')).toBe(
         '# Mock page\n\n`https://example.com/article`\n\n# Mock page\n\nFetched content.\n',
       );
+
+      const jsonSearch = await runCli(
+        ['search', 'deepseek v4', '-j', '-o', join(dir, 'search.json')],
+        { env: envFor(server.url) },
+      );
+
+      expect(jsonSearch.code).toBe(0);
+      expect(jsonSearch.stdout).toContain(`Wrote JSON to ${join(dir, 'search.json')}`);
+      const searchJson = JSON.parse(readFileSync(join(dir, 'search.json'), 'utf8')) as {
+        results: { title: string }[];
+      };
+      expect(searchJson.results[0]?.title).toBe('Result for deepseek v4');
+
+      const jsonFetch = await runCli(
+        ['fetch', 'https://example.com/article', '--json', '-o', 'pages/page.json'],
+        { env: envFor(server.url), cwd: dir },
+      );
+
+      expect(jsonFetch.code).toBe(0);
+      expect(jsonFetch.stdout).toContain('Wrote JSON to pages/page.json');
+      const pageJson = JSON.parse(readFileSync(join(dir, 'pages', 'page.json'), 'utf8')) as {
+        title: string;
+      };
+      expect(pageJson.title).toBe('Mock page');
     } finally {
       rmSync(dir, { recursive: true, force: true });
       await server.close();
