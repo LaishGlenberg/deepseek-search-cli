@@ -1,6 +1,6 @@
 {
   "name": "deepseek-search-cli",
-  "version": "0.1.4",
+  "version": "1.0.0",
   "description": "CLI for DeepSeek's native web search and page fetch APIs",
   "type": "module",
   "bin": {
@@ -31,7 +31,9 @@
     "pretest:watch": "npm run build",
     "test:watch": "vitest",
     "test:live": "vitest run tests/live",
-    "prepublishOnly": "npm run lint && npm run typecheck && npm run build && npm test"
+    "prepublishOnly": "npm run lint && npm run typecheck && npm run build && npm test",
+    "minor": "npm version minor --no-git-tag-version",
+    "major": "npm version major --no-git-tag-version"
   },
   "keywords": [
     "deepseek",
