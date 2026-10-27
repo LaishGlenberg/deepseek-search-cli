@@ -1,6 +1,7 @@
 name: Tag release
 
-# Tags only. This workflow never publishes to npm.
+# Tags only. This workflow never publishes to npm; it creates a GitHub Release
+# with auto-generated notes for the tag it pushes.
 #
 # - Version bumped by the user on merge (tag v<version> missing) -> tag it.
 # - Version unchanged (tag v<version> already exists) -> bump a patch version,
@@ -42,6 +43,7 @@ jobs:
           npm test
 
       - name: Create tag if needed
+        id: tag
         run: |
           set -euo pipefail
 
@@ -75,8 +77,25 @@ jobs:
 
           git tag -a "${tag}" -m "Release ${tag}"
           git push origin "refs/tags/${tag}"
+          echo "name=${tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        if: steps.tag.outputs.name != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          tag="${{ steps.tag.outputs.name }}"
+          if gh release view "${tag}" >/dev/null 2>&1; then
+            echo "Release ${tag} already exists; leaving it alone."
+            exit 0
+          fi
+
+          gh release create "${tag}" --title "${tag}" --verify-tag --generate-notes
 
       - name: Summary
         run: |
           echo "Tagged $(git describe --tags --exact-match 2>/dev/null || echo 'nothing')"
+          echo "GitHub Release notes are generated from the commits since the previous tag."
           echo "No npm publish was performed."

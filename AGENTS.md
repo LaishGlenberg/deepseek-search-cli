@@ -63,7 +63,8 @@ Publishing is manual and deliberately separate from tagging:
    - tags `v<version>` if that tag does not exist (user already bumped), or
    - bumps a patch version, commits `chore: release v<new>`, and tags it when the
      current version was already tagged.
-3. The workflow never runs `npm publish`. Publish manually with `npm publish`.
+3. The workflow creates a GitHub Release for the new tag with auto-generated notes and
+   never runs `npm publish`. Publish manually with `npm publish`.
 
 A `chore: release v*` HEAD commit is skipped to prevent bump loops. All workflows
 push with `GITHUB_TOKEN` and `permissions: contents: write`.

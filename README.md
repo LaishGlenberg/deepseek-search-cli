@@ -1,5 +1,9 @@
 # deepseek-search-cli
 
+[![npm version](https://img.shields.io/npm/v/deepseek-search-cli.svg?logo=npm)](https://www.npmjs.com/package/deepseek-search-cli)
+[![Downloads](https://img.shields.io/npm/dm/deepseek-search-cli?logo=npm)](https://www.npmjs.com/package/deepseek-search-cli)
+[![Build Status](https://github.com/LaishGlenberg/deepseek-search-cli/workflows/CI/badge.svg)](https://github.com/LaishGlenberg/deepseek-search-cli/actions)
+
 Search the web and fetch pages as Markdown from your terminal, using DeepSeek's
 native [Search and Fetch APIs](https://api-docs.deepseek.com/guides/search).
 
