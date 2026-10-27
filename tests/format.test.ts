@@ -67,13 +67,19 @@ describe('formatSearchResults', () => {
 });
 
 describe('formatPage', () => {
-  it('prints the title and Markdown content', () => {
-    expect(formatPage({ title: 'Page', content: '# Heading' })).toBe('Page\n\n# Heading');
+  it('shows the source URL and Markdown content', () => {
+    expect(formatPage('https://example.com/a', { title: 'Page', content: '# Heading' })).toBe(
+      'Page\n`https://example.com/a`\n\n# Heading',
+    );
   });
 
   it('omits empty parts', () => {
-    expect(formatPage({ title: '', content: 'Body' })).toBe('Body');
-    expect(formatPage({ title: 'Title', content: '' })).toBe('Title');
+    expect(formatPage('https://example.com', { title: '', content: 'Body' })).toBe(
+      '`https://example.com`\n\nBody',
+    );
+    expect(formatPage('https://example.com', { title: 'Title', content: '' })).toBe(
+      'Title\n`https://example.com`',
+    );
   });
 });
 
@@ -123,13 +129,18 @@ describe('formatSearchMarkdown', () => {
 });
 
 describe('formatPageMarkdown', () => {
-  it('renders a title heading and the page content', () => {
-    expect(formatPageMarkdown({ title: 'Page', content: '# Heading' })).toBe('# Page\n\n# Heading\n');
+  it('renders a title heading, the source URL, and the page content', () => {
+    expect(formatPageMarkdown('https://example.com/a', { title: 'Page', content: '# Heading' })).toBe(
+      '# Page\n\n`https://example.com/a`\n\n# Heading\n',
+    );
   });
 
   it('omits empty parts', () => {
-    expect(formatPageMarkdown({ title: '', content: 'Body' })).toBe('Body\n');
-    expect(formatPageMarkdown({ title: 'Title', content: '' })).toBe('# Title\n');
-    expect(formatPageMarkdown({ title: '', content: '' })).toBe('');
+    expect(formatPageMarkdown('https://example.com', { title: '', content: 'Body' })).toBe(
+      '`https://example.com`\n\nBody\n',
+    );
+    expect(formatPageMarkdown('https://example.com', { title: 'Title', content: '' })).toBe(
+      '# Title\n\n`https://example.com`\n',
+    );
   });
 });

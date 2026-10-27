@@ -419,10 +419,10 @@ export async function main(argv: string[], deps: CliDeps = {}): Promise<number> 
       const page = await client.fetchPage(command.url);
 
       if (command.output) {
-        writeMarkdown(command.output, formatPageMarkdown(page), deps.cwd ?? process.cwd());
+        writeMarkdown(command.output, formatPageMarkdown(command.url, page), deps.cwd ?? process.cwd());
         out(`Wrote page to ${command.output}`);
       } else {
-        out(command.json ? JSON.stringify(page, null, 2) : formatPage(page));
+        out(command.json ? JSON.stringify(page, null, 2) : formatPage(command.url, page));
       }
     }
     return 0;

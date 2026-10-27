@@ -235,7 +235,7 @@ describe('main', () => {
     const { stdout, deps } = capture();
 
     expect(await main(['fetch', 'https://example.com'], { ...deps, env, fetchImpl: pageResponse })).toBe(0);
-    expect(stdout.join('\n')).toBe('Example\n\n# Body');
+    expect(stdout.join('\n')).toBe('Example\n`https://example.com`\n\n# Body');
   });
 
   it('returns 2 for usage errors', async () => {
@@ -311,7 +311,9 @@ describe('main', () => {
 
       expect(code).toBe(0);
       expect(stdout.join('\n')).toBe('Wrote page to page.md');
-      expect(readFileSync(join(dir, 'page.md'), 'utf8')).toBe('# Example\n\n# Body\n');
+      expect(readFileSync(join(dir, 'page.md'), 'utf8')).toBe(
+        '# Example\n\n`https://example.com`\n\n# Body\n',
+      );
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

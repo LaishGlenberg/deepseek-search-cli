@@ -55,13 +55,12 @@ export function formatSearchResults(
   return [header, '', blocks.join('\n\n')].join('\n');
 }
 
-/** Render a fetched page. */
-export function formatPage(page: FetchResponse): string {
+/** Render a fetched page, showing its source URL. */
+export function formatPage(url: string, page: FetchResponse): string {
   const title = page.title.trim();
   const content = page.content.trim();
-  if (!title) return content;
-  if (!content) return title;
-  return `${title}\n\n${content}`;
+  const head = title ? `${title}\n\`${url}\`` : `\`${url}\``;
+  return content ? `${head}\n\n${content}` : head;
 }
 
 function escapeInline(text: string): string {
@@ -110,12 +109,13 @@ export function formatSearchMarkdown(
   return `${lines.join('\n').trimEnd()}\n`;
 }
 
-/** Render a fetched page as a Markdown document. */
-export function formatPageMarkdown(page: FetchResponse): string {
+/** Render a fetched page as a Markdown document, showing its source URL. */
+export function formatPageMarkdown(url: string, page: FetchResponse): string {
   const title = page.title.trim();
   const content = page.content.trim();
   const parts: string[] = [];
   if (title) parts.push(`# ${title}`);
+  parts.push(`\`${url}\``);
   if (content) parts.push(content);
-  return parts.length > 0 ? `${parts.join('\n\n')}\n` : '';
+  return `${parts.join('\n\n')}\n`;
 }

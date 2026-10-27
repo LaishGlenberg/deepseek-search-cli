@@ -65,7 +65,7 @@ after the query in shorthand mode. `--json` cannot be combined with `--output`.
 
 ### `dsearch fetch`
 
-Fetches a single page and prints its title and Markdown content.
+Fetches a single page and prints its URL, title, and Markdown content.
 
 | Option | Description |
 | --- | --- |

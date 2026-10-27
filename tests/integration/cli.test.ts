@@ -89,7 +89,7 @@ describe('built CLI against a local HTTP server', () => {
       });
 
       expect(code).toBe(0);
-      expect(stdout).toBe('Mock page\n\n# Mock page\n\nFetched content.\n');
+      expect(stdout).toBe('Mock page\n`https://example.com/article`\n\n# Mock page\n\nFetched content.\n');
       expect(server.requests[0]).toMatchObject({
         path: '/v1/tools/fetch',
         body: { url: 'https://example.com/article' },
@@ -123,7 +123,9 @@ describe('built CLI against a local HTTP server', () => {
 
       expect(fetched.code).toBe(0);
       expect(fetched.stdout).toContain('Wrote page to pages/page.md');
-      expect(readFileSync(join(dir, 'pages', 'page.md'), 'utf8')).toContain('# Mock page');
+      expect(readFileSync(join(dir, 'pages', 'page.md'), 'utf8')).toBe(
+        '# Mock page\n\n`https://example.com/article`\n\n# Mock page\n\nFetched content.\n',
+      );
     } finally {
       rmSync(dir, { recursive: true, force: true });
       await server.close();
