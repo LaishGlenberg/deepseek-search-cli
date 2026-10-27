@@ -487,6 +487,12 @@ export async function main(argv: string[], deps: CliDeps = {}): Promise<number> 
     fetchImpl: deps.fetchImpl,
   });
 
+  // Writing to a file prints a confirmation separated from earlier output by a blank line.
+  const save = (path: string, contents: string, message: string) => {
+    writeOutput(path, contents, deps.cwd ?? process.cwd());
+    out(`\n${message}`);
+  };
+
   try {
     if (command.kind === 'search') {
       const response = await client.search(command.query, {
@@ -497,16 +503,16 @@ export async function main(argv: string[], deps: CliDeps = {}): Promise<number> 
       });
 
       if (command.output) {
-        const payload = command.json
-          ? `${JSON.stringify(response, null, 2)}\n`
-          : formatSearchMarkdown(command.query, response.results, { content: command.needContent });
-        writeOutput(command.output, payload, deps.cwd ?? process.cwd());
         const total = response.results.length;
-        out(
-          command.json
-            ? `Wrote JSON to ${command.output}`
-            : `Wrote ${total} result${total === 1 ? '' : 's'} to ${command.output}`,
-        );
+        if (command.json) {
+          save(command.output, `${JSON.stringify(response, null, 2)}\n`, `Wrote JSON to ${command.output}`);
+        } else {
+          save(
+            command.output,
+            formatSearchMarkdown(command.query, response.results, { content: command.needContent }),
+            `Wrote ${total} result${total === 1 ? '' : 's'} to ${command.output}`,
+          );
+        }
       } else {
         out(
           command.json
@@ -519,11 +525,11 @@ export async function main(argv: string[], deps: CliDeps = {}): Promise<number> 
       const rendered = command.clean ? { ...page, content: unescapeMarkdown(page.content) } : page;
 
       if (command.output) {
-        const payload = command.json
-          ? `${JSON.stringify(page, null, 2)}\n`
-          : formatPageMarkdown(command.url, rendered);
-        writeOutput(command.output, payload, deps.cwd ?? process.cwd());
-        out(command.json ? `Wrote JSON to ${command.output}` : `Wrote page to ${command.output}`);
+        if (command.json) {
+          save(command.output, `${JSON.stringify(page, null, 2)}\n`, `Wrote JSON to ${command.output}`);
+        } else {
+          save(command.output, formatPageMarkdown(command.url, rendered), `Wrote page to ${command.output}`);
+        }
       } else {
         out(command.json ? JSON.stringify(page, null, 2) : formatPage(command.url, rendered));
       }

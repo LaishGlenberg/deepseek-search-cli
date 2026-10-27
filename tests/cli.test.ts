@@ -395,7 +395,7 @@ describe('main', () => {
       });
 
       expect(code).toBe(0);
-      expect(stdout.join('\n')).toBe('Wrote 1 result to notes/out.md');
+      expect(stdout.join('\n')).toBe('\nWrote 1 result to notes/out.md');
 
       const markdown = readFileSync(join(dir, 'notes', 'out.md'), 'utf8');
       expect(markdown).toContain('# Search results for `q`');
@@ -420,7 +420,7 @@ describe('main', () => {
       });
 
       expect(code).toBe(0);
-      expect(stdout.join('\n')).toBe('Wrote page to page.md');
+      expect(stdout.join('\n')).toBe('\nWrote page to page.md');
       expect(readFileSync(join(dir, 'page.md'), 'utf8')).toBe(
         '# Example\n\n`https://example.com`\n\n# Body\n',
       );
