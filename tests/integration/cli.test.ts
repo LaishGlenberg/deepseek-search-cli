@@ -193,10 +193,12 @@ describe('built CLI against a local HTTP server', () => {
   });
 
   it('exits 2 without a key and 2 on usage errors', async () => {
-    const env = { ...process.env };
+    const dir = mkdtempSync(join(tmpdir(), 'dsearch-cli-'));
+    // Isolate the config file that `dsearch auth` writes (APPDATA on Windows,
+    // XDG_CONFIG_HOME elsewhere), so a developer's saved key cannot leak in.
+    const env: NodeJS.ProcessEnv = { ...process.env, APPDATA: dir, XDG_CONFIG_HOME: dir };
     delete env.DEEPSEEK_API_KEY;
     delete env.DEEPSEEK_BASE_URL;
-    const dir = mkdtempSync(join(tmpdir(), 'dsearch-cli-'));
 
     try {
       const noKey = await runCli(['search', 'q'], { env, cwd: dir });
