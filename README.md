@@ -44,7 +44,11 @@ npx deepseek-search-cli "DeepSeek V4 release"
 dsearch search <query...> [options]
 dsearch fetch <url> [options]
 dsearch "<query>" [options]
+dsearch <url> [options]
 ```
+
+A bare query searches; a URL starting with `http://` or `https://` fetches that
+page, so `dsearch https://example.com` is shorthand for `dsearch fetch`.
 
 ### `dsearch search`
 

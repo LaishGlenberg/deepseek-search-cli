@@ -175,6 +175,27 @@ describe('parseArgs', () => {
     expect(() => parseArgs(['fetch', 'https://a.com', 'https://b.com'])).toThrow(UsageError);
     expect(() => parseArgs(['fetch', 'https://a.com', '--bogus'])).toThrow(UsageError);
   });
+
+  it('treats a bare URL as a fetch', () => {
+    expect(parseArgs(['https://google.com'])).toEqual({
+      kind: 'fetch',
+      url: 'https://google.com',
+      json: false,
+    });
+    expect(parseArgs(['HTTP://example.com/a', '--json'])).toMatchObject({ kind: 'fetch', json: true });
+    expect(parseArgs(['https://example.com', '-o', 'page.md'])).toMatchObject({
+      kind: 'fetch',
+      output: 'page.md',
+    });
+    expect(() => parseArgs(['https://a.com', 'https://b.com'])).toThrow(UsageError);
+  });
+
+  it('still searches when a URL appears inside the query', () => {
+    expect(parseArgs(['latest https://example.com news'])).toMatchObject({
+      kind: 'search',
+      query: 'latest https://example.com news',
+    });
+  });
 });
 
 describe('main', () => {
@@ -236,6 +257,14 @@ describe('main', () => {
 
     expect(await main(['fetch', 'https://example.com'], { ...deps, env, fetchImpl: pageResponse })).toBe(0);
     expect(stdout.join('\n')).toBe('Example\n`https://example.com`\n\n# Body');
+  });
+
+  it('fetches a bare URL without the fetch command', async () => {
+    const { stdout, stderr, deps } = capture();
+
+    expect(await main(['https://example.com/page'], { ...deps, env, fetchImpl: pageResponse })).toBe(0);
+    expect(stderr).toEqual([]);
+    expect(stdout.join('\n')).toBe('Example\n`https://example.com/page`\n\n# Body');
   });
 
   it('returns 2 for usage errors', async () => {

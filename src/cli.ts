@@ -12,6 +12,7 @@ Usage:
   dsearch search <query...> [options]
   dsearch fetch <url> [options]
   dsearch "<query>" [options]
+  dsearch <url> [options]
 
 Commands:
   search <query...>   Search the web with DeepSeek
@@ -40,6 +41,7 @@ Examples:
   dsearch search "DeepSeek V4 release"
   dsearch "DeepSeek site:github.com after:2025" -n 5 --json
   dsearch "DeepSeek V4 release" -o results.md
+  dsearch https://api-docs.deepseek.com/guides/search
   dsearch fetch https://api-docs.deepseek.com/guides/search --output docs/search.md`;
 
 export class UsageError extends Error {
@@ -306,6 +308,9 @@ export function parseArgs(argv: string[]): ParsedCommand {
   }
   if (first === 'fetch') {
     return parseFetch(rest);
+  }
+  if (/^https?:\/\//i.test(first)) {
+    return parseFetch(argv);
   }
   if (first.startsWith('-') && first !== '-') {
     // No command given: route known search options to a shorthand search so that

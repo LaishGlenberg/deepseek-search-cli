@@ -132,6 +132,25 @@ describe('built CLI against a local HTTP server', () => {
     }
   });
 
+  it('fetches a bare URL without the fetch command', async () => {
+    const server = await startMockServer();
+
+    try {
+      const { code, stdout } = await runCli(['https://example.com/article'], {
+        env: envFor(server.url),
+      });
+
+      expect(code).toBe(0);
+      expect(stdout).toBe('Mock page\n`https://example.com/article`\n\n# Mock page\n\nFetched content.\n');
+      expect(server.requests[0]).toMatchObject({
+        path: '/v1/tools/fetch',
+        body: { url: 'https://example.com/article' },
+      });
+    } finally {
+      await server.close();
+    }
+  });
+
   it('exits 1 on an API error', async () => {
     const server = await startMockServer(() => ({
       status: 401,
