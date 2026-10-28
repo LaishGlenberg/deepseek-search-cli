@@ -32,8 +32,7 @@
     "test:watch": "vitest",
     "test:live": "vitest run tests/live",
     "prepublishOnly": "npm run lint && npm run typecheck && npm run build && npm test",
-    "minor": "npm version minor --no-git-tag-version",
-    "major": "npm version major --no-git-tag-version"
+    "bump": "npm version --no-git-tag-version"
   },
   "keywords": [
     "deepseek",
