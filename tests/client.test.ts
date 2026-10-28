@@ -52,6 +52,7 @@ describe('createClient', () => {
     const [url, init] = fetchImpl.mock.calls[0]!;
     expect(url).toBe('https://api.deepseek.com/v1/tools/search');
     expect(init?.method).toBe('POST');
+    expect(init?.redirect).toBe('error');
     expect(init?.headers).toMatchObject({
       Authorization: 'Bearer secret',
       'Content-Type': 'application/json',

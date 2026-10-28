@@ -174,7 +174,12 @@ The query is sent to DeepSeek unchanged, so its search syntax works as documente
 | `DEEPSEEK_API_KEY` | Yes | API key from [platform.deepseek.com](https://platform.deepseek.com/api_keys) |
 | `DEEPSEEK_BASE_URL` | No | API base URL (default `https://api.deepseek.com`) |
 
-The key is read from the environment first, then from `./.env`.
+The key is read from the environment first, then from `./.env`. `DEEPSEEK_API_KEY`
+also accepts a value injected per command by a secret manager (`op run -- dsearch ...`).
+
+`DEEPSEEK_BASE_URL` is read from the environment only. Every request sends your key
+to that origin, and a `.env` can arrive with a repository you cloned, so it is kept
+out of `.env` resolution.
 
 ## Exit codes
 

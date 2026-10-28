@@ -66,6 +66,7 @@ export function createClient(options: ClientOptions): DeepSeekClient {
           'User-Agent': `deepseek-search-cli/${VERSION}`,
         },
         body: JSON.stringify(body),
+        redirect: 'error',
         signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (error) {
