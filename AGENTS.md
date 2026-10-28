@@ -21,6 +21,7 @@ src/
 tests/
   *.test.ts          unit tests
   integration/       local mock HTTP server + spawned CLI tests
+  e2e/               installs the published npm package, bills one real search
   live/              billed tests, opt-in only
 .github/workflows/
   ci.yml             lint, typecheck, build, test on Node 20/22/24
@@ -37,6 +38,7 @@ tests/
 | `npm test` | Build, then run all tests (live tests skipped) |
 | `npm run test:watch` | Watch mode |
 | `RUN_LIVE_TESTS=1 npm run test:live` | Billed tests against the real API (2 requests max) |
+| `npm run test:e2e` | Installs the published package from npm, runs a real search, uninstalls (billed) |
 | `npm publish` | Runs `prepublishOnly`: lint + typecheck + build + test |
 
 ## Conventions
