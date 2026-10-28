@@ -3,7 +3,8 @@ import { dirname, resolve } from 'node:path';
 
 import { createClient, DeepSeekApiError } from './client.js';
 import { ConfigError, loadConfig, saveApiKey } from './config.js';
-import { formatPage, formatPageMarkdown, formatSearchMarkdown, formatSearchResults, unescapeMarkdown } from './format.js';
+import { formatPage, formatPageMarkdown, formatSearchMarkdown, formatSearchResults, formatUsage, unescapeMarkdown } from './format.js';
+import { readUsage, recordUsage, summarizeUsage, usagePath } from './usage.js';
 import { VERSION } from './version.js';
 
 export const HELP = `dsearch — DeepSeek web search from the terminal
@@ -12,6 +13,7 @@ Usage:
   dsearch search <query...> [options]
   dsearch fetch <url> [options]
   dsearch auth
+  dsearch cost [--json]
   dsearch "<query>" [options]
   dsearch <url> [options]
 
@@ -19,6 +21,7 @@ Commands:
   search <query...>   Search the web with DeepSeek
   fetch <url>         Fetch a single page as Markdown
   auth                Save your DeepSeek API key for all projects
+  cost                Show request counts and estimated cost
 
 Search options:
   -n, --count <1-50>       Number of results to return (default 10)
@@ -31,6 +34,9 @@ Fetch options:
   -j, --json               Print the raw API response as JSON
       --clean              Unescape Markdown punctuation in the fetched content
 
+Cost options:
+  -j, --json               Print usage stats as JSON
+
 Global options:
   -o, --output <file>  Write to a file instead of stdout (JSON with --json, Markdown otherwise)
   -h, --help       Show this help
@@ -42,6 +48,7 @@ Environment:
 
 Examples:
   dsearch auth
+  dsearch cost
   dsearch search "DeepSeek V4 release"
   dsearch "DeepSeek site:github.com after:2025" -n 5 --json
   dsearch "DeepSeek V4 release" -o results.md
@@ -76,10 +83,16 @@ export interface FetchCommand {
   output?: string;
 }
 
+export interface CostCommand {
+  kind: 'cost';
+  json: boolean;
+}
+
 export type ParsedCommand =
   | { kind: 'help' }
   | { kind: 'version' }
   | { kind: 'auth' }
+  | CostCommand
   | SearchCommand
   | FetchCommand;
 
@@ -295,6 +308,21 @@ function parseFetch(tokens: string[]): ParsedCommand {
   return { kind: 'fetch', url, json, clean, output };
 }
 
+function parseCost(tokens: string[]): ParsedCommand {
+  let json = false;
+
+  for (const token of tokens) {
+    if (token === '-h' || token === '--help') return { kind: 'help' };
+    if (token === '-j' || token === '--json') {
+      json = true;
+      continue;
+    }
+    throw new UsageError(token.startsWith('-') ? `Unknown option: ${token}` : 'cost takes no arguments.');
+  }
+
+  return { kind: 'cost', json };
+}
+
 /** Search options that may appear before the query in shorthand mode. */
 const SHORTHAND_OPTIONS = new Set([
   '-n',
@@ -326,6 +354,9 @@ export function parseArgs(argv: string[]): ParsedCommand {
     if (rest.length > 0) throw new UsageError('auth takes no arguments.');
     return { kind: 'auth' };
   }
+  if (first === 'cost') {
+    return parseCost(rest);
+  }
   if (/^https?:\/\//i.test(first)) {
     return parseFetch(argv);
   }
@@ -348,6 +379,8 @@ export interface CliDeps {
   cwd?: string;
   fetchImpl?: typeof fetch;
   stdin?: NodeJS.ReadStream;
+  /** Fixed clock, primarily for tests. */
+  now?: Date;
 }
 
 function apiHint(status: number): string | undefined {
@@ -469,6 +502,15 @@ export async function main(argv: string[], deps: CliDeps = {}): Promise<number> 
   if (command.kind === 'auth') {
     return runAuth(deps);
   }
+  if (command.kind === 'cost') {
+    const summary = summarizeUsage(readUsage(deps.env), deps.now);
+    out(
+      command.json
+        ? JSON.stringify({ ...summary, usageFile: usagePath(deps.env) }, null, 2)
+        : formatUsage(summary),
+    );
+    return 0;
+  }
 
   let config;
   try {
@@ -502,6 +544,9 @@ export async function main(argv: string[], deps: CliDeps = {}): Promise<number> 
         localization: command.localization,
       });
 
+      // DeepSeek bills only successful requests that produce a result.
+      if (response.results.length > 0) recordUsage('search', { env: deps.env, now: deps.now });
+
       if (command.output) {
         const total = response.results.length;
         if (command.json) {
@@ -522,6 +567,10 @@ export async function main(argv: string[], deps: CliDeps = {}): Promise<number> 
       }
     } else {
       const page = await client.fetchPage(command.url);
+
+      // DeepSeek bills a fetch only when it returns page content.
+      if (page.content.trim()) recordUsage('fetch', { env: deps.env, now: deps.now });
+
       const rendered = command.clean ? { ...page, content: unescapeMarkdown(page.content) } : page;
 
       if (command.output) {

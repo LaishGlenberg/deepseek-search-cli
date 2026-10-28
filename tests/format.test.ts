@@ -4,9 +4,11 @@ import {
   formatPageMarkdown,
   formatSearchMarkdown,
   formatSearchResults,
+  formatUsage,
   unescapeMarkdown,
 } from '../src/format.js';
 import type { SearchResult } from '../src/types.js';
+import type { UsageSummary } from '../src/usage.js';
 
 function result(overrides: Partial<SearchResult> = {}): SearchResult {
   return {
@@ -143,6 +145,46 @@ describe('formatPageMarkdown', () => {
     expect(formatPageMarkdown('https://example.com', { title: 'Title', content: '' })).toBe(
       '# Title\n\n`https://example.com`\n',
     );
+  });
+});
+
+function usageSummary(): UsageSummary {
+  return {
+    pricePerRequestUsd: 0.00075,
+    windows: [
+      { id: 'today', label: 'Today', searches: 1, fetches: 0, requests: 1, costUsd: 0.00075 },
+      { id: 'last7Days', label: 'Last 7 days', searches: 1, fetches: 1, requests: 2, costUsd: 0.0015 },
+      { id: 'last30Days', label: 'Last 30 days', searches: 1, fetches: 1, requests: 2, costUsd: 0.0015 },
+      { id: 'allTime', label: 'All time', searches: 3, fetches: 2, requests: 5, costUsd: 0.00375 },
+    ],
+    averagePerWeek: 0.5,
+  };
+}
+
+describe('formatUsage', () => {
+  it('renders an aligned table with cost and average', () => {
+    const output = formatUsage(usageSummary());
+
+    expect(output).toContain('Period');
+    expect(output).toContain('Searches');
+    expect(output).toContain('Fetches');
+    expect(output).toContain('Requests');
+    expect(output).toContain('Today');
+    expect(output).toContain('$0.0015');
+    expect(output).toContain('$0.00375');
+    expect(output).toContain('Average per week (last 30 days): 0.5');
+  });
+
+  it('shows a clear message when nothing has been recorded', () => {
+    const summary = usageSummary();
+    for (const window of summary.windows) {
+      window.searches = 0;
+      window.fetches = 0;
+      window.requests = 0;
+      window.costUsd = 0;
+    }
+
+    expect(formatUsage(summary)).toBe('No billable requests recorded yet.');
   });
 });
 

@@ -51,14 +51,19 @@ function readDotEnv(cwd: string): Record<string, string> {
   }
 }
 
-/** Path of the user-level config file written by `dsearch auth`. */
-export function configPath(env: NodeJS.ProcessEnv = process.env): string {
+/** Directory for user-level dsearch files (`config.json`, `usage.jsonl`). */
+export function configDir(env: NodeJS.ProcessEnv = process.env): string {
   if (process.platform === 'win32') {
     const base = env.APPDATA?.trim() || join(homedir(), 'AppData', 'Roaming');
-    return join(base, 'dsearch', 'config.json');
+    return join(base, 'dsearch');
   }
   const base = env.XDG_CONFIG_HOME?.trim() || join(homedir(), '.config');
-  return join(base, 'dsearch', 'config.json');
+  return join(base, 'dsearch');
+}
+
+/** Path of the user-level config file written by `dsearch auth`. */
+export function configPath(env: NodeJS.ProcessEnv = process.env): string {
+  return join(configDir(env), 'config.json');
 }
 
 function readStoredApiKey(env: NodeJS.ProcessEnv): string | undefined {

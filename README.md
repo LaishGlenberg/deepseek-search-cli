@@ -59,6 +59,7 @@ npx deepseek-search-cli "DeepSeek V4 release"
 ```text
 dsearch search <query...> [options]
 dsearch fetch <url> [options]
+dsearch cost [--json]
 dsearch "<query>" [options]
 dsearch <url> [options]
 ```
@@ -101,6 +102,21 @@ links, and `\(`/`\[` are read as math delimiters by KaTeX-based renderers. `--cl
 removes those escapes outside fenced code blocks so the page renders normally;
 `--json` still returns the API response unchanged.
 
+### `dsearch cost`
+
+Shows how many billable requests this machine has made and estimates the cost at
+DeepSeek's current rate of $0.75 per 1,000 successful requests.
+
+```text
+Period        Searches  Fetches  Requests      Cost
+Today                3        2         5  $0.00375
+Last 7 days          3        2         5  $0.00375
+Last 30 days         4        2         6   $0.0045
+All time             4        3         7  $0.00525
+
+Average per week (last 30 days): 1.4
+```
+
 ### Examples
 
 ```bash
@@ -123,6 +139,9 @@ dsearch fetch https://api-docs.deepseek.com/guides/search -o docs/search-api.md
 # Save the raw API response as JSON
 dsearch "DeepSeek V4 release" -n 5 -j -o results.json
 dsearch fetch https://api-docs.deepseek.com/guides/search --json -o docs/search-api.json
+
+# See request counts and estimated cost
+dsearch cost
 
 # Unescape the fetch endpoint's escaped Markdown so headings and tables render
 dsearch fetch https://api-docs.deepseek.com/quick_start/pricing/ --clean -o docs/pricing.md
@@ -194,7 +213,9 @@ insufficient balance, and `429` means the rate limit was exceeded.
 
 Search and Fetch are billed per successful request ($0.75 per 1,000 requests at the
 time of writing) and rate limited to 100 and 25 requests per second respectively.
-See the [API guide](https://api-docs.deepseek.com/guides/search) for current details.
+`dsearch cost` estimates spend from a local ledger, so it does not see requests made
+by other tools or on other machines. See the
+[API guide](https://api-docs.deepseek.com/guides/search) for current details.
 
 ## Development
 

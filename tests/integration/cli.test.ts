@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { startMockServer } from './mock-server.js';
 
 const CLI_PATH = fileURLToPath(new URL('../../dist/index.js', import.meta.url));
@@ -35,8 +35,14 @@ function runCli(args: string[], options: { env?: NodeJS.ProcessEnv; cwd?: string
   });
 }
 
+/** Keep usage recording out of the developer's real config directory. */
+const usageDir = mkdtempSync(join(tmpdir(), 'dsearch-integration-usage-'));
+afterAll(() => rmSync(usageDir, { recursive: true, force: true }));
+const CONFIG_ENV: NodeJS.ProcessEnv =
+  process.platform === 'win32' ? { APPDATA: usageDir } : { XDG_CONFIG_HOME: usageDir };
+
 function envFor(serverUrl: string, apiKey = 'integration-key'): NodeJS.ProcessEnv {
-  return { ...process.env, DEEPSEEK_API_KEY: apiKey, DEEPSEEK_BASE_URL: serverUrl };
+  return { ...process.env, ...CONFIG_ENV, DEEPSEEK_API_KEY: apiKey, DEEPSEEK_BASE_URL: serverUrl };
 }
 
 describe('built CLI against a local HTTP server', () => {
@@ -76,6 +82,40 @@ describe('built CLI against a local HTTP server', () => {
       const payload = JSON.parse(stdout) as { results: { title: string }[] };
       expect(payload.results[0]?.title).toBe('Result for json query');
     } finally {
+      await server.close();
+    }
+  });
+
+  it('records billable requests and reports them with dsearch cost', async () => {
+    const server = await startMockServer();
+    const dir = mkdtempSync(join(tmpdir(), 'dsearch-integration-cost-'));
+    const configEnv: NodeJS.ProcessEnv =
+      process.platform === 'win32' ? { APPDATA: dir } : { XDG_CONFIG_HOME: dir };
+    const isolatedEnv = {
+      ...process.env,
+      ...configEnv,
+      DEEPSEEK_API_KEY: 'integration-key',
+      DEEPSEEK_BASE_URL: server.url,
+    };
+
+    try {
+      expect((await runCli(['search', 'q'], { env: isolatedEnv, cwd: dir })).code).toBe(0);
+      expect((await runCli(['search', 'q', '--count=0'], { env: isolatedEnv, cwd: dir })).code).toBe(2);
+
+      const cost = await runCli(['cost', '--json'], { env: isolatedEnv, cwd: dir });
+      expect(cost.code).toBe(0);
+      const payload = JSON.parse(cost.stdout) as {
+        windows: { id: string; searches: number; fetches: number; requests: number }[];
+        usageFile: string;
+      };
+      expect(payload.windows.find((window) => window.id === 'allTime')).toMatchObject({
+        searches: 1,
+        fetches: 0,
+        requests: 1,
+      });
+      expect(payload.usageFile).toBe(join(dir, 'dsearch', 'usage.jsonl'));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
       await server.close();
     }
   });

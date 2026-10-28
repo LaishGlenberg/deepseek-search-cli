@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { main, parseArgs, UsageError } from '../src/cli.js';
 import { loadConfig } from '../src/config.js';
 import type { SearchResult } from '../src/types.js';
@@ -11,6 +11,10 @@ import type { SearchResult } from '../src/types.js';
 function configEnv(dir: string): NodeJS.ProcessEnv {
   return process.platform === 'win32' ? { APPDATA: dir } : { XDG_CONFIG_HOME: dir };
 }
+
+/** Keep usage tracking from `main` out of the developer's real config directory. */
+const usageDir = mkdtempSync(join(tmpdir(), 'dsearch-main-usage-'));
+afterAll(() => rmSync(usageDir, { recursive: true, force: true }));
 
 function pipedStdin(input: string): NodeJS.ReadStream {
   return Readable.from([input]) as unknown as NodeJS.ReadStream;
@@ -55,6 +59,7 @@ function capture() {
 const searchResponse = async () => fakeResponse({ results: [result()] });
 const emptyResponse = async () => fakeResponse({ results: [] });
 const pageResponse = async () => fakeResponse({ title: 'Example', content: '# Body' });
+const emptyPageResponse = async () => fakeResponse({ title: '', content: '' });
 const authErrorResponse = async () =>
   fakeResponse({ error: { message: 'Authentication Fails', code: 'invalid_request_error' } }, 401);
 const connectionFailure = async (): Promise<Response> => {
@@ -78,6 +83,15 @@ describe('parseArgs', () => {
   it('parses the auth command', () => {
     expect(parseArgs(['auth'])).toEqual({ kind: 'auth' });
     expect(() => parseArgs(['auth', 'extra'])).toThrow(UsageError);
+  });
+
+  it('parses the cost command', () => {
+    expect(parseArgs(['cost'])).toEqual({ kind: 'cost', json: false });
+    expect(parseArgs(['cost', '--json'])).toEqual({ kind: 'cost', json: true });
+    expect(parseArgs(['cost', '-j'])).toEqual({ kind: 'cost', json: true });
+    expect(parseArgs(['cost', '--help'])).toEqual({ kind: 'help' });
+    expect(() => parseArgs(['cost', 'extra'])).toThrow(UsageError);
+    expect(() => parseArgs(['cost', '--bogus'])).toThrow(UsageError);
   });
 
   it('joins positional search words into a query', () => {
@@ -228,7 +242,7 @@ describe('parseArgs', () => {
 });
 
 describe('main', () => {
-  const env = { DEEPSEEK_API_KEY: 'test-key' } as NodeJS.ProcessEnv;
+  const env = { DEEPSEEK_API_KEY: 'test-key', ...configEnv(usageDir) } as NodeJS.ProcessEnv;
 
   it('prints help and version without needing a key', async () => {
     const help = capture();
@@ -238,6 +252,95 @@ describe('main', () => {
     const version = capture();
     expect(await main(['--version'], { ...version.deps, env: {} })).toBe(0);
     expect(version.stdout.join('\n')).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  it('prints cost without an API key', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'dsearch-cost-'));
+
+    try {
+      const { stdout, stderr, deps } = capture();
+      expect(await main(['cost'], { ...deps, env: configEnv(dir), cwd: dir })).toBe(0);
+      expect(stderr).toEqual([]);
+      expect(stdout.join('\n')).toBe('No billable requests recorded yet.');
+
+      const json = capture();
+      expect(await main(['cost', '--json'], { ...json.deps, env: configEnv(dir), cwd: dir })).toBe(0);
+      const payload = JSON.parse(json.stdout.join('\n')) as {
+        windows: { id: string; requests: number }[];
+        averagePerWeek: number;
+        usageFile: string;
+      };
+      expect(payload.windows.find((window) => window.id === 'allTime')?.requests).toBe(0);
+      expect(payload.averagePerWeek).toBe(0);
+      expect(payload.usageFile).toBe(join(dir, 'dsearch', 'usage.jsonl'));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('records billable requests and reports them with dsearch cost', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'dsearch-cost-'));
+    const now = new Date(2026, 9, 28, 12, 0, 0);
+    const isolated = { DEEPSEEK_API_KEY: 'test-key', ...configEnv(dir) };
+
+    try {
+      const search = capture();
+      expect(
+        await main(['search', 'q'], { ...search.deps, env: isolated, cwd: dir, fetchImpl: searchResponse, now }),
+      ).toBe(0);
+
+      // Empty results and failed calls are not billable.
+      const empty = capture();
+      expect(
+        await main(['search', 'q'], { ...empty.deps, env: isolated, cwd: dir, fetchImpl: emptyResponse, now }),
+      ).toBe(0);
+      const failed = capture();
+      expect(
+        await main(['search', 'q'], { ...failed.deps, env: isolated, cwd: dir, fetchImpl: authErrorResponse, now }),
+      ).toBe(1);
+
+      const fetched = capture();
+      expect(
+        await main(['fetch', 'https://example.com'], {
+          ...fetched.deps,
+          env: isolated,
+          cwd: dir,
+          fetchImpl: pageResponse,
+          now,
+        }),
+      ).toBe(0);
+
+      // A fetch without page content is not billable either.
+      const emptyFetch = capture();
+      expect(
+        await main(['fetch', 'https://example.com'], {
+          ...emptyFetch.deps,
+          env: isolated,
+          cwd: dir,
+          fetchImpl: emptyPageResponse,
+          now,
+        }),
+      ).toBe(0);
+
+      const cost = capture();
+      expect(await main(['cost'], { ...cost.deps, env: isolated, cwd: dir, now })).toBe(0);
+      expect(cost.stdout.join('\n')).toMatch(/Today\s+1\s+1\s+2\s+\$0\.0015/);
+      expect(cost.stdout.join('\n')).toContain('Average per week (last 30 days): 0.5');
+
+      const json = capture();
+      expect(await main(['cost', '--json'], { ...json.deps, env: isolated, cwd: dir, now })).toBe(0);
+      const payload = JSON.parse(json.stdout.join('\n')) as {
+        windows: { id: string; searches: number; fetches: number; requests: number; costUsd: number }[];
+      };
+      expect(payload.windows.find((window) => window.id === 'allTime')).toMatchObject({
+        searches: 1,
+        fetches: 1,
+        requests: 2,
+        costUsd: 0.0015,
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('prints results for a search', async () => {

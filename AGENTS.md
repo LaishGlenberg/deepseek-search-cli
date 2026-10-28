@@ -16,6 +16,7 @@ src/
   client.ts     Search/Fetch HTTP client and DeepSeekApiError
   config.ts     env, .env, and `dsearch auth` key resolution, ConfigError
   format.ts     terminal output
+  usage.ts      local billable-request ledger and cost summary
   types.ts      API request/response types
   version.ts    reads version from package.json
 tests/
@@ -51,6 +52,10 @@ tests/
   characters, http(s) URLs).
 - Exit codes are part of the interface: `0` success, `1` runtime/API error, `2`
   usage or config error. New errors must follow this.
+- Record only billable successes in `usage.jsonl`: search with a non-empty
+  `results` array, fetch with non-empty content. Tracking is best-effort and must
+  never fail an already-billed request.
+- `dsearch cost` is local-only and runs before `loadConfig`, so it needs no API key.
 - Tests must not hit the network unless they are in `tests/live/` and gated by
   `RUN_LIVE_TESTS=1`. Do not add e2e tests without the user's permission.
 - Use `rg` for searching. Keep logging minimal; errors go to stderr.

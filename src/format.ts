@@ -1,4 +1,5 @@
 import type { FetchResponse, SearchResult } from './types.js';
+import type { UsageSummary } from './usage.js';
 
 function indentBlock(text: string): string {
   return text
@@ -53,6 +54,43 @@ export function formatSearchResults(
   });
 
   return [header, '', blocks.join('\n\n')].join('\n');
+}
+
+const USAGE_HEADERS = ['Period', 'Searches', 'Fetches', 'Requests', 'Cost'];
+
+/** Show up to five decimals without trailing zeroes ($0.00075, $0.0015). */
+function formatCost(costUsd: number): string {
+  return `$${costUsd.toFixed(5).replace(/0+$/, '').replace(/\.$/, '')}`;
+}
+
+/** Render request counts and estimated cost as an aligned table. */
+export function formatUsage(summary: UsageSummary): string {
+  if (summary.windows.every((window) => window.requests === 0)) {
+    return 'No billable requests recorded yet.';
+  }
+
+  const rows = summary.windows.map((window) => [
+    window.label,
+    String(window.searches),
+    String(window.fetches),
+    String(window.requests),
+    formatCost(window.costUsd),
+  ]);
+
+  const widths = USAGE_HEADERS.map((header, column) =>
+    Math.max(header.length, ...rows.map((row) => row[column]!.length)),
+  );
+  const render = (cells: string[]) =>
+    cells
+      .map((cell, column) => (column === 0 ? cell.padEnd(widths[column]!) : cell.padStart(widths[column]!)))
+      .join('  ');
+
+  return [
+    render(USAGE_HEADERS),
+    ...rows.map(render),
+    '',
+    `Average per week (last 30 days): ${summary.averagePerWeek.toFixed(1)}`,
+  ].join('\n');
 }
 
 /** Render a fetched page, showing its source URL. */
