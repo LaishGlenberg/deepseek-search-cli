@@ -13,6 +13,7 @@ optional full page content. It is a small, zero-dependency wrapper around:
 - `POST /v1/tools/search` — find web pages for a query
 - `POST /v1/tools/fetch` — retrieve a page as Markdown
 
+Quick demo showing search, fetch, and json file output:
 <p align="center">
   <img
     src="https://raw.githubusercontent.com/LaishGlenberg/deepseek-search-cli/main/docs/assets/search-sequence.gif"
@@ -26,20 +27,22 @@ optional full page content. It is a small, zero-dependency wrapper around:
 ```bash
 npm install -g deepseek-search-cli
 dsearch auth
-dsearch "DeepSeek V4 release"
+dsearch "World Cup winners 2026" -n 2
 ```
 
 `dsearch auth` prompts for your API key (input is hidden, or pipe it in) and saves it
-for every project. It prints the file it wrote. `DEEPSEEK_API_KEY` and a `.env` in the
+for every project. API keys in `.env` in the
 current directory take precedence over the saved key.
 
 The key is stored as plaintext JSON readable only by your user (`0600` on Linux and
 macOS). When piping, avoid `echo`, which leaves the key in shell history:
 
+*Pipe key in from secret manager if you don't want it saved*
 ```bash
 read -rs DEEPSEEK_KEY && printf '%s' "$DEEPSEEK_KEY" | dsearch auth
 ```
 
+*Search with extra specifers, 5 results returned*
 ```bash
 dsearch search "DeepSeek site:github.com after:2025" -n 5
 ```
@@ -50,8 +53,8 @@ Requires Node.js 20 or newer.
 
 ```bash
 npm install -g deepseek-search-cli
-# or run without installing
-npx deepseek-search-cli "DeepSeek V4 release"
+# or run without installing (if key exported in pwd)
+npx deepseek-search-cli "World Cup winners 2026"
 ```
 
 ## Usage
@@ -64,8 +67,14 @@ dsearch "<query>" [options]
 dsearch <url> [options]
 ```
 
-A bare query searches; a URL starting with `http://` or `https://` fetches that
-page, so `dsearch https://example.com` is shorthand for `dsearch fetch`.
+Short Circuit:
+
+```
+dsearch "World Cup winners 2026"          ""       = search
+dsearch https://example.com               https:// = fetch
+```
+
+Detects queries and fetches automatically, no need to specify `search` and `fetch`
 
 ### `dsearch search`
 
@@ -80,10 +89,7 @@ page, so `dsearch https://example.com` is shorthand for `dsearch fetch`.
 | `-h, --help` | Show help |
 | `-v, --version` | Show the version |
 
-Option values can also use `--count=5`. Everything after `--` is treated as query
-text, which is useful for queries starting with a dash. Options may come before or
-after the query in shorthand mode. Combine `--json` with `--output` to save the raw
-API response to a file.
+Options may come before or after the query in shorthand mode. Combine `--json` with `--output` to save the raw API response to a json file (default '-o' is markdown).
 
 ### `dsearch fetch`
 
@@ -96,10 +102,7 @@ Fetches a single page and prints its URL, title, and Markdown content.
 | `--clean` | Unescape Markdown punctuation in the fetched content |
 | `-h, --help` | Show help |
 
-The fetch endpoint returns Markdown with every ASCII punctuation character
-backslash-escaped (`\#`, `\-`, `\(`, `\.`, `\/`). That breaks headings, tables, and
-links, and `\(`/`\[` are read as math delimiters by KaTeX-based renderers. `--clean`
-removes those escapes outside fenced code blocks so the page renders normally;
+`--clean` removes stray or broken escape characters pulled into the response so markdown renders correctly (Experimental)
 `--json` still returns the API response unchanged.
 
 ### `dsearch cost`
@@ -121,10 +124,10 @@ Average per week (last 30 days): 1.4
 
 ```bash
 # Search and print the top 5 results with summaries
-dsearch search "DeepSeek V4 release" -n 5
+dsearch search "World Cup winners 2026" -n 5
 
 # Include the full page content of each result
-dsearch "DeepSeek V4 release" --content
+dsearch "World Cup winners 2026" --content
 
 # Restrict results by site, language, and date
 dsearch "DeepSeek site:github.com OR site:huggingface.co lang:en after:2025"
@@ -133,11 +136,11 @@ dsearch "DeepSeek site:github.com OR site:huggingface.co lang:en after:2025"
 dsearch search "DeepSeek API docs" --json | jq -r '.results[].url'
 
 # Save results or a fetched page as Markdown (parent directories are created)
-dsearch "DeepSeek V4 release" -n 5 -o notes/deepseek-v4.md
+dsearch "World Cup winners 2026" -n 5 -o notes/deepseek-v4.md
 dsearch fetch https://api-docs.deepseek.com/guides/search -o docs/search-api.md
 
 # Save the raw API response as JSON
-dsearch "DeepSeek V4 release" -n 5 -j -o results.json
+dsearch "World Cup winners 2026" -n 5 -j -o results.json
 dsearch fetch https://api-docs.deepseek.com/guides/search --json -o docs/search-api.json
 
 # See request counts and estimated cost
@@ -153,7 +156,7 @@ dsearch fetch https://api-docs.deepseek.com/guides/search
 Search output looks like this:
 
 ```text
-2 results for `DeepSeek V4 release`
+2 results for `World Cup winners 2026`
 
 1. DeepSeek V4 model released [2.4]
    https://example.com/deepseek-v4
@@ -237,3 +240,7 @@ Every tagged version is documented in [CHANGELOG.md](CHANGELOG.md).
 ## License
 
 MIT
+
+## Developer notes
+
+Please leave a star on the repo if this tool helped you or your agent! 
