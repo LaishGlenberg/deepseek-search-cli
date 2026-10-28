@@ -27,6 +27,7 @@ tests/
 .github/workflows/
   ci.yml             lint, typecheck, build, test on Node 20/22/24
   tag.yml            tag-only release automation
+CHANGELOG.md         release notes per tagged version
 ```
 
 ## Commands

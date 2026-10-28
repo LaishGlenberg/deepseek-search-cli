@@ -230,6 +230,10 @@ Tests use a local mock HTTP server; the optional live API tests are billed and o
 with `RUN_LIVE_TESTS=1 npm run test:live`. Release and repository conventions live in
 [AGENTS.md](AGENTS.md).
 
+## Release notes
+
+Every tagged version is documented in [CHANGELOG.md](CHANGELOG.md).
+
 ## License
 
 MIT
