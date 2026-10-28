@@ -98,14 +98,16 @@ export function saveApiKey(apiKey: string, env: NodeJS.ProcessEnv = process.env)
 }
 
 /**
- * Resolve configuration from the environment, then `./.env`, then the user config
- * file written by `dsearch auth`. Throws `ConfigError` when the API key is missing.
+ * Resolve the API key from the environment, then `./.env`, then the user config file
+ * written by `dsearch auth`. The base URL is environment-only: a `.env` can arrive with
+ * a cloned repository, and every request sends the key to that origin. Throws
+ * `ConfigError` when the API key is missing.
  */
 export function loadConfig(env: NodeJS.ProcessEnv = process.env, cwd: string = process.cwd()): Config {
   const fileValues = readDotEnv(cwd);
   const apiKey =
     env.DEEPSEEK_API_KEY?.trim() || fileValues.DEEPSEEK_API_KEY?.trim() || readStoredApiKey(env);
-  const baseUrl = env.DEEPSEEK_BASE_URL?.trim() || fileValues.DEEPSEEK_BASE_URL?.trim() || DEFAULT_BASE_URL;
+  const baseUrl = env.DEEPSEEK_BASE_URL?.trim() || DEFAULT_BASE_URL;
 
   if (!apiKey) {
     throw new ConfigError(

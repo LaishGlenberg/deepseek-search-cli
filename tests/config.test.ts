@@ -71,12 +71,13 @@ describe('loadConfig', () => {
     expect(config).toEqual({ apiKey: 'from-env', baseUrl: 'https://env.test' });
   });
 
-  it('falls back to .env in the working directory', () => {
+  it('reads the key from .env but ignores a .env base URL', () => {
     const cwd = tempDirWithDotEnv('DEEPSEEK_API_KEY=from-file\nDEEPSEEK_BASE_URL=https://file.test\n');
 
+    // A repo-controlled .env must not be able to redirect the API key.
     expect(loadConfig(isolatedEnv(), cwd)).toEqual({
       apiKey: 'from-file',
-      baseUrl: 'https://file.test',
+      baseUrl: DEFAULT_BASE_URL,
     });
   });
 
