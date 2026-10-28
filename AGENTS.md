@@ -65,6 +65,7 @@ CHANGELOG.md         release notes per tagged version
 - Tests must not hit the network unless they are in `tests/live/` and gated by
   `RUN_LIVE_TESTS=1`. Do not add e2e tests without the user's permission.
 - Use `rg` for searching. Keep logging minimal; errors go to stderr.
+- When updating the change log never leave comments like "Tagged `v1.1.0` on the next push to `main`." even if that's the case.
 
 ## Release
 

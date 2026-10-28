@@ -7,9 +7,21 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the proje
 Each release is a tag on `main` (`v<version>`) plus a GitHub Release generated from the
 commits listed under it. Entries link to the commit that introduced them.
 
-## [1.1.0] - 2026-10-28
+## [1.2.0] - 2026-10-28
 
-*Tagged `v1.1.0` on the next push to `main`.*
+### Added
+
+- The package is now importable as a zero-dependency library: `search()`, `fetchPage()`,
+  and `createDsearch()` reuse the CLI's config resolution, client, and usage ledger, so
+  `dsearch cost` also counts library calls. Failures throw `ConfigError` or
+  `DeepSeekApiError` instead of printing. ([828814a])
+
+### Changed
+
+- `main`, `types`, and `exports` now point at the library entry, so importing the
+  package no longer runs the CLI. The `dsearch` binary is unchanged. ([828814a])
+
+## [1.1.0] - 2026-10-28
 
 ### Added
 
@@ -125,6 +137,7 @@ Initial release.
 
 - The release workflow sets a git identity before creating annotated tags. ([bc4761f])
 
+[1.2.0]: https://github.com/LaishGlenberg/deepseek-search-cli/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/LaishGlenberg/deepseek-search-cli/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/LaishGlenberg/deepseek-search-cli/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/LaishGlenberg/deepseek-search-cli/compare/v1.0.0...v1.0.1
@@ -135,6 +148,7 @@ Initial release.
 [0.1.1]: https://github.com/LaishGlenberg/deepseek-search-cli/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/LaishGlenberg/deepseek-search-cli/releases/tag/v0.1.0
 
+[828814a]: https://github.com/LaishGlenberg/deepseek-search-cli/commit/828814a
 [902e256]: https://github.com/LaishGlenberg/deepseek-search-cli/commit/902e256
 [841c927]: https://github.com/LaishGlenberg/deepseek-search-cli/commit/841c927
 [5fcc7b7]: https://github.com/LaishGlenberg/deepseek-search-cli/commit/5fcc7b7
