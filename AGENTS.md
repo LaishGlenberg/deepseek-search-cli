@@ -11,7 +11,8 @@ of the official API guide.
 
 ```text
 src/
-  index.ts      entry point (shebang, exit code)
+  index.ts      binary entry point (shebang, exit code)
+  sdk.ts        library entry point (package `exports`): search, fetchPage, createDsearch
   cli.ts        argument parsing, help text, command runner
   client.ts     Search/Fetch HTTP client and DeepSeekApiError
   config.ts     env, .env, and `dsearch auth` key resolution, ConfigError
@@ -47,6 +48,10 @@ CHANGELOG.md         release notes per tagged version
 
 - ESM only; `tsconfig` uses `NodeNext`, so relative imports need a `.js` extension.
   Tests import `../src/cli.js` and vitest resolves it to the TypeScript source.
+- `src/index.ts` is only the binary. The package `exports` entry is `src/sdk.ts`, so
+  importing the package never runs the CLI; the SDK must not import `cli.ts`.
+- The SDK reuses `loadConfig`, `createClient`, and `recordUsage` rather than reimplementing
+  them, so library and CLI behavior cannot drift.
 - No runtime dependencies. Use native `fetch`; keep argument parsing hand-rolled.
 - Keep the CLI cheap and scriptable: every command supports `--json`.
 - Validate user input in `cli.ts` before calling the API (count 1–50, query ≤128

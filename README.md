@@ -175,6 +175,27 @@ Search output looks like this:
 `--json` prints the API response unchanged, including `snippet`, `summary`,
 `content`, `site_icon`, `authority`, and `rerank_score` for every result.
 
+## Node.js library
+
+The package is also importable as a zero-dependency library. It wraps the same HTTP
+client, key resolution, and cost ledger as the CLI.
+
+```js
+import { search, fetchPage, createDsearch } from 'deepseek-search-cli';
+
+// Same key lookup as the CLI: environment, ./.env, then `dsearch auth`
+const { results } = await search('DeepSeek V4 release', { count: 5 });
+const page = await fetchPage('https://api-docs.deepseek.com/guides/search');
+// OR
+// Isolated instance: explicit key, longer timeout, no usage ledger writes
+const ds = createDsearch({ apiKey: process.env.DS_KEY, timeoutMs: 10_000, trackUsage: false });
+```
+
+`search` and `fetchPage` record billable requests so `dsearch cost` stays accurate;
+`createClient({ apiKey })` skips config lookup and tracking entirely. Failures throw
+`ConfigError` for configuration and `DeepSeekApiError` (with `.status` and `.code`) for
+API errors. Request and response types are exported for TypeScript users.
+
 ## Query operators
 
 The query is sent to DeepSeek unchanged, so its search syntax works as documented:
