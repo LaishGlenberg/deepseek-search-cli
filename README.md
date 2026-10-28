@@ -30,19 +30,26 @@ dsearch auth
 dsearch "World Cup winners 2026" -n 2
 ```
 
-`dsearch auth` prompts for your API key (input is hidden, or pipe it in) and saves it
-for every project. API keys in `.env` in the
-current directory take precedence over the saved key.
+`dsearch auth` prompts for your API key (input is hidden). The key is stored as plaintext JSON readable only by your user (`0600` on
+Linux and macOS). `DEEPSEEK_API_KEY` set in the environment or `./.env` takes
+precedence over the saved key.
 
-The key is stored as plaintext JSON readable only by your user (`0600` on Linux and
-macOS). When piping, avoid `echo`, which leaves the key in shell history:
+To keep the key in a secret manager instead, inject it per command — nothing is
+written to disk:
 
-*Pipe key in from secret manager if you don't want it saved*
+```bash
+op run -- dsearch "World Cup winners 2026"
+# OR
+DEEPSEEK_API_KEY=$(pass show deepseek) dsearch "World Cup winners 2026"
+```
+
+`dsearch auth` always saves. Don't use `echo` if piping since the key will be saved in history:
+
 ```bash
 read -rs DEEPSEEK_KEY && printf '%s' "$DEEPSEEK_KEY" | dsearch auth
 ```
 
-*Search with extra specifers, 5 results returned*
+*Search with extra specifiers, 5 results returned*
 ```bash
 dsearch search "DeepSeek site:github.com after:2025" -n 5
 ```
@@ -217,8 +224,9 @@ The query is sent to DeepSeek unchanged, so its search syntax works as documente
 | `DEEPSEEK_API_KEY` | Yes | API key from [platform.deepseek.com](https://platform.deepseek.com/api_keys) |
 | `DEEPSEEK_BASE_URL` | No | API base URL (default `https://api.deepseek.com`) |
 
-The key is read from the environment first, then from `./.env`. `DEEPSEEK_API_KEY`
-also accepts a value injected per command by a secret manager (`op run -- dsearch ...`).
+The key is read from `DEEPSEEK_API_KEY` in the environment, then `./.env`, then the key
+saved by `dsearch auth`. A secret manager can inject it per command
+(`op run -- dsearch ...`) so nothing is written to disk.
 
 `DEEPSEEK_BASE_URL` is read from the environment only. Every request sends your key
 to that origin, and a `.env` can arrive with a repository you cloned, so it is kept

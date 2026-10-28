@@ -46,6 +46,8 @@ Environment:
   DEEPSEEK_API_KEY    Required. Also read from ./.env or the 'dsearch auth' key
   DEEPSEEK_BASE_URL   Optional API base URL (default https://api.deepseek.com)
 
+  Inject a key per command instead of saving one:  op run -- dsearch "query"
+
 Examples:
   dsearch auth
   dsearch cost
