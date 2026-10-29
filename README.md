@@ -249,6 +249,22 @@ time of writing) and rate limited to 100 and 25 requests per second respectively
 by other tools or on other machines. See the
 [API guide](https://api-docs.deepseek.com/guides/search) for current details.
 
+## Security & capabilities
+
+Scanner tools flag `dsearch` for network, environment, filesystem, and URL access. All
+four are required by a search client, and the full surface is:
+
+| Capability | What it touches |
+| --- | --- |
+| Network | HTTPS requests to `https://api.deepseek.com` only (`DEEPSEEK_BASE_URL` overrides the origin) |
+| Environment | `DEEPSEEK_API_KEY`, `DEEPSEEK_BASE_URL`, `XDG_CONFIG_HOME` / `APPDATA` |
+| Files read | `./.env`, and `config.json` in `~/.config/dsearch` (`%APPDATA%\dsearch` on Windows) |
+| Files written | `config.json` (mode `0600`), the `usage.jsonl` ledger, and any `-o` output path |
+
+There is no telemetry, no install script, and no runtime dependency. Your key is sent
+only to the API origin above; results go to stdout or your `-o` path. Library users can
+turn the ledger off with `createDsearch({ trackUsage: false })`.
+
 ## Development
 
 ```bash
